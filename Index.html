@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Inventory Manager</title>
+  <!-- Google Identity Services for Google Authentication -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- HTML2PDF library for high-fidelity client-side invoice PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     /* ========== CSS RESET & MOBILE FOUNDATION ========== */
     * {
@@ -996,23 +1000,80 @@
       100% { opacity: 1; }
     }
 
+    @keyframes scaleIn {
+      0% { transform: scale(0.92); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ========== AUTHENTICATION OVERLAY ========== */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .auth-overlay.hidden {
+      display: none !important;
+    }
+
+    .auth-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 400px;
+      max-height: 92vh;
+      overflow-y: auto;
+      border-radius: 16px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+      padding: 24px 20px;
+      animation: scaleIn 0.22s ease-out;
+    }
+
+    .user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #e8f0fe;
+      color: #1a73e8;
+      border: 1px solid #d2e3fc;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .user-pill.admin {
+      background: #fce8e6;
+      color: #c5221f;
+      border-color: #fad2cf;
+    }
+
     /* ========== PRINT STYLES (INVOICE) ========== */
     @media print {
       body * {
-        visibility: hidden;
+        visibility: hidden !important;
       }
       #invoicePrintArea, #invoicePrintArea * {
-        visibility: visible;
+        visibility: visible !important;
       }
       #invoicePrintArea {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 24px;
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 24px !important;
         border: none !important;
         box-shadow: none !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
     }
   </style>
@@ -1030,9 +1091,81 @@
         </div>
       </div>
       <div class="header-actions">
+        <div id="headerUserBadge" style="display:none; align-items:center; background:#fff0f2; border:1px solid #ffd1d8; border-radius:14px; padding:3px 8px; font-size:11px; font-weight:600; color:#9b111e; margin-right:4px;">
+          <span id="headerUserName">Admin</span>
+        </div>
         <button class="icon-btn" id="btnRefresh" title="Refresh" aria-label="Refresh">🔄</button>
+        <button class="icon-btn" id="btnLogout" title="Sign out" aria-label="Sign out" style="display:none;">🚪</button>
       </div>
     </header>
+
+    <!-- ==============================================
+         AUTHENTICATION OVERLAY (WHITELIST VERIFICATION)
+         ============================================== -->
+    <div id="authOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <div style="text-align:center; margin-bottom:16px;">
+          <img id="authCompanyLogo" src="" alt="Logo" style="display:none; max-height:48px; max-width:140px; margin:0 auto 8px auto; object-fit:contain;">
+          <div style="font-size:11px; font-weight:800; color:#9b111e; letter-spacing:1px; text-transform:uppercase;">Crimson Charm</div>
+          <h2 style="font-size:20px; font-weight:700; color:#202124; margin:4px 0 2px 0;">Sign In</h2>
+          <div style="font-size:12px; color:#5f6368;">Whitelisted Access Only</div>
+        </div>
+
+        <!-- Security Badge -->
+        <div style="background:#e6f4ea; border:1px solid #ceead6; border-radius:8px; padding:10px 12px; margin-bottom:16px; font-size:12px; color:#137333; display:flex; align-items:flex-start; gap:8px;">
+          <span style="font-size:16px;">🛡️</span>
+          <div>
+            <strong>Google Sheets Whitelist Protected</strong>
+            <div style="font-size:11px; opacity:0.9; margin-top:2px;">Only authorized Google accounts listed in your spreadsheet can log in.</div>
+          </div>
+        </div>
+
+        <!-- Google Sign-In Container -->
+        <div id="googleSignInSection" style="margin-bottom:14px;">
+          <div id="googleBtnWrapper" style="display:flex; justify-content:center; min-height:40px; margin-bottom:8px;"></div>
+
+          <button type="button" class="btn btn-outline btn-block btn-sm" id="btnTriggerGoogleAuth" style="display:flex; align-items:center; justify-content:center; gap:8px; border-color:#dadce0; color:#3c4043; font-weight:500;">
+            <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.173 0 7.548 0 9s.347 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
+            Sign in with Google
+          </button>
+
+          <div id="googleAuthSuccessBadge" style="display:none; background:#e8f0fe; border:1px solid #d2e3fc; color:#1a73e8; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; text-align:center; margin-top:8px;">
+            ✓ Google Verified: <span id="googleAuthEmailText"></span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; text-align:center; color:#5f6368; font-size:11px; margin:12px 0;">
+          <div style="flex:1; border-bottom:1px solid #dadce0;"></div>
+          <span style="padding:0 8px; text-transform:uppercase; font-weight:600;">Or Whitelist Login</span>
+          <div style="flex:1; border-bottom:1px solid #dadce0;"></div>
+        </div>
+
+        <!-- Whitelisted Email & Password -->
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Whitelisted Email<span class="required">*</span></label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="user@gmail.com" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password / Master PIN</label>
+          <div style="position:relative; display:flex; align-items:center;">
+            <input type="password" id="loginPassword" class="form-control" placeholder="Enter password" style="padding-right:40px;" autocomplete="current-password">
+            <button type="button" id="btnToggleLoginPassword" class="icon-btn" style="position:absolute; right:2px;" title="Show/Hide">👁️</button>
+          </div>
+        </div>
+
+        <div id="authErrorMessage" style="display:none; background:#fce8e6; border:1px solid #fad2cf; color:#c5221f; border-radius:6px; padding:8px 10px; font-size:12px; margin-bottom:12px; line-height:1.4;">
+        </div>
+
+        <button type="button" class="btn btn-primary btn-block" id="btnSubmitLogin" style="margin-top:4px;">
+          Verify &amp; Enter App
+        </button>
+
+        <div style="margin-top:14px; text-align:center; font-size:11px; color:#5f6368; line-height:1.4;">
+          Authorized access only. Managed via the <strong>Users</strong> sheet in your Google Sheet database.
+        </div>
+      </div>
+    </div>
 
     <!-- Scrollable Content -->
     <main class="content">
@@ -1177,121 +1310,157 @@
            SCREEN 3: 💰 SELL
            ============================================== -->
       <section id="screen-sell" class="screen">
-        <div class="card">
-          <div class="section-header">
-            <h2 class="section-title">Item Selector</h2>
-          </div>
+        <!-- Sell Screen Mode Toggle (Record Sale vs Sales History & Invoices) -->
+        <div class="segmented-control" id="sellModeToggle" style="margin-bottom:14px;">
+          <button type="button" class="segment-btn active" id="btnSellModeNew" data-mode="new">💰 Record Sale</button>
+          <button type="button" class="segment-btn" id="btnSellModeHistory" data-mode="history">📋 Sales &amp; Invoices</button>
+        </div>
 
-          <!-- Item Selector Dropdown -->
-          <div class="form-group">
-            <label class="form-label" for="sellItemSelect">Pick an Item from Inventory</label>
-            <select id="sellItemSelect" class="form-control">
-              <option value="">-- Select an item --</option>
-            </select>
-          </div>
-
-          <!-- Selected Item Info Card -->
-          <div id="sellItemInfoCard" style="display:none; margin-bottom:14px; background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px;">
-            <div style="display:flex; gap:12px; align-items:center;">
-              <div id="sellItemThumb" class="item-thumbnail">📦</div>
-              <div style="flex:1; min-width:0;">
-                <div id="sellItemName" style="font-weight:700; font-size:15px; color:#202124;">-</div>
-                <div style="display:flex; gap:6px; align-items:center; margin:3px 0;">
-                  <span id="sellItemCategoryBadge" class="badge">Category</span>
-                  <span id="sellItemStockBadge" class="badge badge-success">Stock: 0 units</span>
-                </div>
-                <div id="sellItemBuyPriceText" style="font-size:12px; color:#5f6368;">Buy Price: ₹0.00 per unit</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pricing Section -->
-          <div id="sellPricingSection" style="display:none;">
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label" for="sellMarkupPct">Markup %</label>
-                <input type="number" id="sellMarkupPct" class="form-control" min="0" step="1" value="40">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="sellDiscountPct">Discount %</label>
-                <input type="number" id="sellDiscountPct" class="form-control" min="0" max="100" step="1" value="0">
-              </div>
+        <!-- NEW SALE CONTAINER -->
+        <div id="sellNewSaleContainer">
+          <div class="card">
+            <div class="section-header">
+              <h2 class="section-title">Item Selector</h2>
             </div>
 
-            <!-- Calculated Sell Price Display -->
-            <div style="background:#e6f4ea; border:1px solid #ceead6; border-radius:10px; padding:12px; text-align:center; margin-bottom:14px;">
-              <div style="font-size:12px; font-weight:600; color:#137333; text-transform:uppercase;">Calculated Sell Price per unit</div>
-              <div id="sellCalculatedPrice" style="font-size:24px; font-weight:700; color:#137333; margin:2px 0;">₹0.00</div>
-              <div id="sellFormulaText" style="font-size:11px; color:#5f6368;">₹0 × 1.00 × 1.00 = ₹0.00</div>
-            </div>
-
-            <!-- Quantity Section -->
+            <!-- Item Selector Dropdown -->
             <div class="form-group">
-              <label class="form-label" for="sellQuantityInput">
-                Qty to Sell (Max: <span id="sellMaxStockText">0</span>)
-              </label>
-              <input type="number" id="sellQuantityInput" class="form-control" min="1" step="1" value="1">
-              <div class="quick-qty-group">
-                <button type="button" class="quick-qty-btn" data-qty="1">1</button>
-                <button type="button" class="quick-qty-btn" data-qty="2">2</button>
-                <button type="button" class="quick-qty-btn" data-qty="5">5</button>
-                <button type="button" class="quick-qty-btn" data-qty="10">10</button>
-                <button type="button" class="quick-qty-btn" id="btnSellQtyMax">Max</button>
+              <label class="form-label" for="sellItemSelect">Pick an Item from Inventory</label>
+              <select id="sellItemSelect" class="form-control">
+                <option value="">-- Select an item --</option>
+              </select>
+            </div>
+
+            <!-- Selected Item Info Card -->
+            <div id="sellItemInfoCard" style="display:none; margin-bottom:14px; background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px;">
+              <div style="display:flex; gap:12px; align-items:center;">
+                <div id="sellItemThumb" class="item-thumbnail">📦</div>
+                <div style="flex:1; min-width:0;">
+                  <div id="sellItemName" style="font-weight:700; font-size:15px; color:#202124;">-</div>
+                  <div style="display:flex; gap:6px; align-items:center; margin:3px 0;">
+                    <span id="sellItemCategoryBadge" class="badge">Category</span>
+                    <span id="sellItemStockBadge" class="badge badge-success">Stock: 0 units</span>
+                  </div>
+                  <div id="sellItemBuyPriceText" style="font-size:12px; color:#5f6368;">Buy Price: ₹0.00 per unit</div>
+                </div>
               </div>
             </div>
 
-            <!-- Sale Summary Card -->
-            <div class="card" style="background:#ffffff; border:1px solid #1a73e8; margin-bottom:16px;">
-              <div style="font-size:13px; font-weight:700; color:#1a73e8; margin-bottom:8px;">Sale Summary</div>
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;">
-                <span style="color:#5f6368;">Revenue:</span>
-                <span id="sellSummaryRevenue" style="font-weight:600; color:#202124;">₹0.00</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;">
-                <span style="color:#5f6368;">Cost:</span>
-                <span id="sellSummaryCost" style="font-weight:600; color:#5f6368;">₹0.00</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px; padding-top:4px; border-top:1px dashed #dadce0;">
-                <span style="font-weight:700; color:#202124;">Profit:</span>
-                <span id="sellSummaryProfit" style="font-weight:700; color:#137333;">₹0.00</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; font-size:12px;">
-                <span style="color:#5f6368;">Margin:</span>
-                <span id="sellSummaryMargin" style="font-weight:600; color:#e37400;">0.0%</span>
-              </div>
-            </div>
-
-            <!-- Optional Customer Details for Invoice -->
-            <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
-              <div style="font-size:12px; font-weight:700; color:#5f6368; text-transform:uppercase; margin-bottom:6px;">
-                Customer Details (For Invoice - Optional)
-              </div>
-              <div class="form-group" style="margin-bottom:8px;">
-                <input type="text" id="sellCustomerName" class="form-control" placeholder="Customer Name (e.g. John Doe)" style="height:38px; font-size:13px;">
-              </div>
+            <!-- Pricing Section -->
+            <div id="sellPricingSection" style="display:none;">
               <div class="form-row">
-                <input type="email" id="sellCustomerEmail" class="form-control" placeholder="Customer Email" style="height:38px; font-size:13px;">
-                <input type="tel" id="sellCustomerPhone" class="form-control" placeholder="Phone Number" style="height:38px; font-size:13px;">
+                <div class="form-group">
+                  <label class="form-label" for="sellMarkupPct">Markup %</label>
+                  <input type="number" id="sellMarkupPct" class="form-control" min="0" step="1" value="40">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="sellDiscountPct">Discount %</label>
+                  <input type="number" id="sellDiscountPct" class="form-control" min="0" max="100" step="1" value="0">
+                </div>
+              </div>
+
+              <!-- Calculated Sell Price Display -->
+              <div style="background:#e6f4ea; border:1px solid #ceead6; border-radius:10px; padding:12px; text-align:center; margin-bottom:14px;">
+                <div style="font-size:12px; font-weight:600; color:#137333; text-transform:uppercase;">Calculated Sell Price per unit</div>
+                <div id="sellCalculatedPrice" style="font-size:24px; font-weight:700; color:#137333; margin:2px 0;">₹0.00</div>
+                <div id="sellFormulaText" style="font-size:11px; color:#5f6368;">₹0 × 1.00 × 1.00 = ₹0.00</div>
+              </div>
+
+              <!-- Quantity Section -->
+              <div class="form-group">
+                <label class="form-label" for="sellQuantityInput">
+                  Qty to Sell (Max: <span id="sellMaxStockText">0</span>)
+                </label>
+                <input type="number" id="sellQuantityInput" class="form-control" min="1" step="1" value="1">
+                <div class="quick-qty-group">
+                  <button type="button" class="quick-qty-btn" data-qty="1">1</button>
+                  <button type="button" class="quick-qty-btn" data-qty="2">2</button>
+                  <button type="button" class="quick-qty-btn" data-qty="5">5</button>
+                  <button type="button" class="quick-qty-btn" data-qty="10">10</button>
+                  <button type="button" class="quick-qty-btn" id="btnSellQtyMax">Max</button>
+                </div>
+              </div>
+
+              <!-- Sale Summary Card -->
+              <div class="card" style="background:#ffffff; border:1px solid #1a73e8; margin-bottom:16px;">
+                <div style="font-size:13px; font-weight:700; color:#1a73e8; margin-bottom:8px;">Sale Summary</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;">
+                  <span style="color:#5f6368;">Revenue:</span>
+                  <span id="sellSummaryRevenue" style="font-weight:600; color:#202124;">₹0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;">
+                  <span style="color:#5f6368;">Cost:</span>
+                  <span id="sellSummaryCost" style="font-weight:600; color:#5f6368;">₹0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px; padding-top:4px; border-top:1px dashed #dadce0;">
+                  <span style="font-weight:700; color:#202124;">Profit:</span>
+                  <span id="sellSummaryProfit" style="font-weight:700; color:#137333;">₹0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px;">
+                  <span style="color:#5f6368;">Margin:</span>
+                  <span id="sellSummaryMargin" style="font-weight:600; color:#e37400;">0.0%</span>
+                </div>
+              </div>
+
+              <!-- Customer Details Section for Invoice & Sheet -->
+              <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <div style="font-size:12px; font-weight:700; color:#5f6368; text-transform:uppercase;">
+                    Customer Details (For Invoice &amp; Mobile Share)
+                  </div>
+                  <span style="font-size:10px; background:#e8f0fe; color:#1a73e8; font-weight:600; padding:2px 6px; border-radius:4px;">Auto-Saves to Sheet</span>
+                </div>
+                <!-- Autocomplete Datalist -->
+                <datalist id="sellCustomerDatalist"></datalist>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <input type="text" id="sellCustomerName" list="sellCustomerDatalist" class="form-control" placeholder="Customer Name (type or pick from list)" style="height:38px; font-size:13px;">
+                </div>
+                <div class="form-row" style="margin-bottom:8px;">
+                  <input type="tel" id="sellCustomerPhone" class="form-control" placeholder="Mobile No. (for WhatsApp &amp; PDF)" style="height:38px; font-size:13px;">
+                  <input type="email" id="sellCustomerEmail" class="form-control" placeholder="Email (optional)" style="height:38px; font-size:13px;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <input type="text" id="sellCustomerAddress" class="form-control" placeholder="Billing Address (optional)" style="height:38px; font-size:13px;">
+                </div>
+              </div>
+
+              <!-- Record Sale Submit Button -->
+              <button type="button" class="btn btn-success btn-block" id="btnRecordSaleSubmit">
+                Record Sale - ₹0.00 Revenue
+              </button>
+
+              <!-- Post-Sale Action Card (Appears after successful sale) -->
+              <div id="postSaleActionCard" style="display:none; margin-top:14px; background:#e6f4ea; border:1px solid #ceead6; border-radius:10px; padding:14px; text-align:center;">
+                <div style="font-size:14px; font-weight:700; color:#137333; margin-bottom:4px;">✓ Sale Recorded Successfully!</div>
+                <div id="postSaleDetailsText" style="font-size:12px; color:#5f6368; margin-bottom:10px;">-</div>
+                <div style="display:flex; gap:8px;">
+                  <button type="button" class="btn btn-primary btn-block btn-sm" id="btnOpenLastSaleInvoice">
+                    📄 On-Demand Letterhead Invoice
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnDismissPostSale">
+                    Done
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Record Sale Submit Button -->
-            <button type="button" class="btn btn-success btn-block" id="btnRecordSaleSubmit">
-              Record Sale - ₹0.00 Revenue
-            </button>
-
-            <!-- Post-Sale Action Card (Appears after successful sale) -->
-            <div id="postSaleActionCard" style="display:none; margin-top:14px; background:#e6f4ea; border:1px solid #ceead6; border-radius:10px; padding:14px; text-align:center;">
-              <div style="font-size:14px; font-weight:700; color:#137333; margin-bottom:4px;">✓ Sale Recorded Successfully!</div>
-              <div id="postSaleDetailsText" style="font-size:12px; color:#5f6368; margin-bottom:10px;">-</div>
-              <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-primary btn-block btn-sm" id="btnOpenLastSaleInvoice">
-                  📄 View &amp; Email Invoice
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm" id="btnDismissPostSale">
-                  Done
-                </button>
-              </div>
+        <!-- SALES HISTORY & ON-DEMAND INVOICES CONTAINER -->
+        <div id="sellHistoryContainer" style="display:none;">
+          <div class="card">
+            <div class="section-header">
+              <h2 class="section-title">Sales &amp; On-Demand Invoices</h2>
+              <button type="button" class="btn btn-outline btn-sm" id="btnRefreshSalesHistory">🔄 Refresh</button>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <input type="text" id="salesHistorySearchInput" class="form-control" placeholder="Search sales by item, customer, mobile..." style="height:38px; font-size:13px;">
+            </div>
+            <div id="salesHistoryListContainer">
+              <!-- Rendered via JS -->
+            </div>
+            <div id="salesHistoryEmptyText" class="empty-state-subtitle" style="text-align:center; padding:14px 0; display:none;">
+              No sales recorded yet. Completed sales will appear here for on-demand invoice generation.
             </div>
           </div>
         </div>
@@ -1386,6 +1555,27 @@
           </div>
         </div>
 
+        <!-- Customer Directory Section -->
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">👥 Customer Directory</h2>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-outline btn-sm" id="btnExportCustomers" title="Export All Customers to CSV">📥 Export</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnImportCustomers" title="Import Customers from CSV / Excel">📤 Import</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btnOpenAddCustomerModal">+ Add</button>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <input type="text" id="customersSearchInput" class="form-control" placeholder="Search customers by name or mobile..." style="height:38px; font-size:13px;">
+          </div>
+          <div id="customersListContainer">
+            <!-- Rendered via JS -->
+          </div>
+          <div id="customersEmptyText" class="empty-state-subtitle" style="text-align:center; padding:12px 0; display:none;">
+            No customers registered yet. Customers are auto-created when recording a sale or can be added manually.
+          </div>
+        </div>
+
         <!-- Company Profile & Logo Section -->
         <div class="card">
           <div class="section-header">
@@ -1429,9 +1619,51 @@
             <textarea id="inputCompanyAddress" class="form-control" placeholder="Store address, City, Pincode"></textarea>
           </div>
 
+          <!-- Signatory & Digital Signature Section -->
+          <div class="form-group" style="margin-top:14px; padding-top:12px; border-top:1px dashed #dadce0;">
+            <label class="form-label" for="inputSignatoryName">Authorized Signatory Name</label>
+            <input type="text" id="inputSignatoryName" class="form-control" value="Mrs. Nancy Khatri" placeholder="e.g. Mrs. Nancy Khatri">
+            <div style="font-size:11px; color:#5f6368; margin-top:3px;">Appears on official invoices &amp; letterhead</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Digital Signature</label>
+            <input type="file" id="signatureFileInput" accept="image/*" style="display:none;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; padding:10px; background:#f8f9fa; border-radius:8px; border:1px solid #dadce0;">
+              <div id="signaturePreviewBox" style="width:100px; height:50px; border-radius:6px; background:#ffffff; border:1px solid #dadce0; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                <img id="signaturePreviewImg" src="" alt="Digital Signature" style="display:none; width:100%; height:100%; object-fit:contain;">
+                <span id="signaturePlaceholderIcon" style="font-size:20px; color:#718096;">✍️</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="btn btn-outline btn-sm" id="btnUploadSignature">Upload / Snap Signature</button>
+                  <button type="button" class="btn btn-danger btn-sm" id="btnClearSignature" style="padding:4px 8px; font-size:11px; display:none;">Clear</button>
+                </div>
+                <div style="font-size:11px; color:#5f6368;">Digital sign stamped on letterhead invoices</div>
+              </div>
+            </div>
+            <input type="url" id="inputCompanySignatureUrl" class="form-control" placeholder="Or paste Signature image URL" style="font-size:12px; height:36px;">
+          </div>
+
           <button type="button" class="btn btn-primary btn-block btn-sm" id="btnSaveCompanyProfile">
             Save Company Profile
           </button>
+        </div>
+
+        <!-- User Whitelist & Access Control Section -->
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">User Whitelist &amp; Access</h2>
+            <button type="button" class="btn btn-primary btn-sm" id="btnOpenAddUserModal">+ Whitelist User</button>
+          </div>
+          <div style="font-size:12px; color:#5f6368; margin-bottom:12px; line-height:1.4;">
+            Only whitelisted accounts can sign in. Synced directly with the <strong>Users</strong> tab in Google Sheets.
+          </div>
+          <div id="whitelistedUsersContainer">
+            <div class="empty-state" style="padding:16px 0;">
+              <div style="font-size:13px; color:#5f6368;">Loading whitelisted accounts...</div>
+            </div>
+          </div>
         </div>
 
         <!-- Settings Section -->
@@ -1452,6 +1684,19 @@
           </div>
           <button type="button" class="btn btn-primary btn-block btn-sm" id="btnSaveApiKey">
             Save Key
+          </button>
+
+          <hr style="border:none; border-top:1px solid #dadce0; margin:16px 0;">
+
+          <div class="form-group">
+            <label class="form-label" for="inputGoogleClientId">Google OAuth Client ID (Optional for Sign in with Google)</label>
+            <input type="text" id="inputGoogleClientId" class="form-control" placeholder="123456789-xyz.apps.googleusercontent.com">
+            <div style="font-size:12px; color:#5f6368; margin-top:4px; line-height:1.4;">
+              From Google Cloud Console &gt; APIs &amp; Services &gt; Credentials. Enables official "Sign in with Google" button.
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-block btn-sm" id="btnSaveGoogleClientId">
+            Save Google Client ID
           </button>
 
           <hr style="border:none; border-top:1px solid #dadce0; margin:16px 0;">
@@ -1672,48 +1917,64 @@
   </div>
 
   <!-- ==============================================
-       MODAL 4: INVOICE GENERATOR & EMAIL MODAL
+       MODAL 4: ON-DEMAND LETTERHEAD INVOICE MAKER
        ============================================== -->
   <div class="modal-backdrop" id="modalInvoice">
-    <div class="modal-content" style="max-height:92vh;">
+    <div class="modal-content" style="max-height:94vh;">
       <div class="modal-drag-bar"></div>
       <div class="modal-header-row">
-        <h3 class="modal-title" id="invoiceModalTitle">Invoice - Crimson Charm</h3>
+        <h3 class="modal-title" id="invoiceModalTitle">On-Demand Letterhead Invoice</h3>
         <button type="button" class="modal-close-x" id="btnCloseInvoice">✕</button>
       </div>
 
-      <!-- Printable / Previewable Invoice Card -->
-      <div id="invoicePrintArea" style="background:#ffffff; border:1px solid #dadce0; border-radius:10px; padding:16px; margin-bottom:14px; font-size:13px; color:#202124;">
-        <!-- Header with logo and company name -->
+      <!-- Printable / High-Fidelity Letterhead Frame -->
+      <div id="invoicePrintArea" class="letterhead-container" style="background:#ffffff; border:1px solid #dcdcdc; border-radius:10px; padding:20px; margin-bottom:14px; font-size:13px; color:#202124; box-shadow:0 2px 8px rgba(0,0,0,0.06); position:relative; overflow:hidden;">
+        
+        <!-- Luxury Top Accent Bar -->
+        <div style="height:6px; background:linear-gradient(90deg, #9b111e 0%, #b81424 50%, #d4af37 100%); margin:-20px -20px 16px -20px;"></div>
+
+        <!-- Letterhead Header -->
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid #9b111e;">
-          <div>
-            <img id="invoicePreviewLogo" src="" alt="Crimson Charm" style="display:none; max-height:48px; max-width:120px; margin-bottom:4px; object-fit:contain;">
-            <div id="invoiceCompanyName" style="font-size:18px; font-weight:800; color:#9b111e; letter-spacing:-0.3px;">Crimson Charm</div>
-            <div id="invoiceCompanyContact" style="font-size:11px; color:#5f6368; line-height:1.4;">Inventory &amp; Retail</div>
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div id="invoiceLogoWrapper" style="width:54px; height:54px; border-radius:8px; border:1px solid #ebd2d5; background:#fff5f6; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+              <img id="invoicePreviewLogo" src="" alt="Crimson Charm" style="display:none; width:100%; height:100%; object-fit:contain;">
+              <span id="invoiceLogoPlaceholder" style="font-size:22px; color:#9b111e; font-weight:800; font-family:serif;">CC</span>
+            </div>
+            <div>
+              <div id="invoiceCompanyName" style="font-size:20px; font-weight:900; color:#9b111e; letter-spacing:1px; text-transform:uppercase; font-family:'Georgia', serif; line-height:1.1;">Crimson Charm</div>
+              <div style="font-size:10px; font-weight:700; color:#b81424; letter-spacing:0.5px; text-transform:uppercase; margin-top:2px;">Luxury Gifting &amp; Curated Collectibles</div>
+              <div id="invoiceCompanyContact" style="font-size:11px; color:#5f6368; line-height:1.4; margin-top:3px;">Inventory &amp; Retail</div>
+            </div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:14px; font-weight:700; color:#9b111e;">INVOICE</div>
-            <div id="invoiceDisplayNumber" style="font-weight:600; font-size:12px; color:#202124;">#INV-CC-000000</div>
-            <div id="invoiceDisplayDate" style="font-size:11px; color:#5f6368;">-</div>
+            <div style="display:inline-block; background:#9b111e; color:#ffffff; font-size:10px; font-weight:800; padding:3px 8px; border-radius:4px; letter-spacing:0.5px; margin-bottom:4px;">RETAIL INVOICE</div>
+            <div id="invoiceDisplayNumber" style="font-weight:800; font-size:13px; color:#202124;">#INV-CC-000000</div>
+            <div id="invoiceDisplayDate" style="font-size:11px; color:#5f6368; margin-top:2px;">-</div>
           </div>
         </div>
 
-        <!-- Bill To -->
-        <div style="margin-bottom:12px; background:#f8f9fa; border-radius:8px; padding:10px;">
-          <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:#5f6368; margin-bottom:2px;">Bill To:</div>
-          <div id="invoiceDisplayCustomerName" style="font-weight:700; font-size:14px; color:#202124;">Valued Customer</div>
-          <div id="invoiceDisplayCustomerEmail" style="font-size:12px; color:#5f6368;">-</div>
-          <div id="invoiceDisplayCustomerPhone" style="font-size:12px; color:#5f6368;"></div>
+        <!-- Billed To Section (Executive Card) -->
+        <div style="background:#fcfbfc; border:1px solid #ebd2d5; border-left:4px solid #9b111e; border-radius:6px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:10px; font-weight:800; text-transform:uppercase; color:#9b111e; letter-spacing:0.5px;">Billed To (Customer Details):</div>
+            <span id="invoicePaymentStatusBadge" style="background:#e6f4ea; color:#137333; font-size:10px; font-weight:700; padding:2px 6px; border-radius:3px;">PAID</span>
+          </div>
+          <div id="invoiceDisplayCustomerName" style="font-weight:800; font-size:15px; color:#202124;">Valued Customer</div>
+          <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:4px; font-size:12px; color:#4a5568;">
+            <div id="invoiceDisplayCustomerPhone" style="font-weight:600; color:#202124;">📞 -</div>
+            <div id="invoiceDisplayCustomerEmail" style="color:#5f6368;">✉️ -</div>
+          </div>
+          <div id="invoiceDisplayCustomerAddress" style="font-size:11px; color:#718096; margin-top:3px;">📍 -</div>
         </div>
 
         <!-- Items Table -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12px;">
           <thead>
-            <tr style="border-bottom:1px solid #dadce0; color:#5f6368; text-transform:uppercase; font-size:11px;">
-              <th style="text-align:left; padding:6px 4px;">Item</th>
-              <th style="text-align:center; padding:6px 4px;">Qty</th>
-              <th style="text-align:right; padding:6px 4px;">Price</th>
-              <th style="text-align:right; padding:6px 4px;">Total</th>
+            <tr style="background:#f7fafc; border-top:1px solid #e2e8f0; border-bottom:2px solid #cbd5e0; color:#4a5568; text-transform:uppercase; font-size:10px; letter-spacing:0.5px;">
+              <th style="text-align:left; padding:8px 6px;">Item Description</th>
+              <th style="text-align:center; padding:8px 6px; width:45px;">Qty</th>
+              <th style="text-align:right; padding:8px 6px; width:75px;">Rate (₹)</th>
+              <th style="text-align:right; padding:8px 6px; width:85px;">Amount (₹)</th>
             </tr>
           </thead>
           <tbody id="invoiceTableBody">
@@ -1721,22 +1982,78 @@
           </tbody>
         </table>
 
-        <!-- Total Box -->
-        <div style="background:#fff5f5; border:1px solid #feb2b2; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div style="font-weight:700; font-size:13px; color:#721c24;">Grand Total</div>
-          <div id="invoiceDisplayGrandTotal" style="font-size:18px; font-weight:800; color:#9b111e;">₹0.00</div>
+        <!-- Total Breakdown Box -->
+        <div style="background:#fff5f6; border:1px solid #ffd1d8; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:12px; color:#5f6368;">
+            <span>Subtotal:</span>
+            <span id="invoiceDisplaySubtotal" style="font-weight:600; color:#202124;">₹0.00</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px dashed #feb2b2;">
+            <div style="font-weight:800; font-size:14px; color:#9b111e; text-transform:uppercase;">Grand Total</div>
+            <div id="invoiceDisplayGrandTotal" style="font-size:20px; font-weight:900; color:#9b111e;">₹0.00</div>
+          </div>
         </div>
 
-        <!-- Footer / Credits -->
-        <div style="text-align:center; font-size:11px; color:#5f6368; padding-top:8px; border-top:1px dashed #dadce0;">
-          <div>Thank you for shopping with Crimson Charm!</div>
-          <div style="margin-top:4px; font-weight:600; color:#9b111e;">With Love from ASK Hospitality</div>
+        <!-- Letterhead Footer & Policy -->
+        <div style="font-size:10px; color:#718096; line-height:1.5; padding-top:10px; border-top:1px solid #edf2f7;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div style="max-width:65%;">
+              <div style="font-weight:700; color:#4a5568; margin-bottom:2px;">Terms &amp; Exchange Policy:</div>
+              <div>Thank you for choosing Crimson Charm! Goods once sold can be exchanged within 7 days in original packaging with this invoice.</div>
+            </div>
+            <div style="text-align:right;">
+              <div id="invoiceSignatureBox" style="min-height:36px; display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-end; margin-bottom:4px;">
+                <img id="invoiceSignatureImg" src="" alt="Signature" style="display:none; max-height:44px; max-width:140px; object-fit:contain; margin-bottom:2px;">
+              </div>
+              <div style="border-top:1px solid #a0aec0; padding-top:2px; min-width:130px;">
+                <div id="invoiceSignatoryName" style="font-size:11px; font-weight:700; color:#202124;">Mrs. Nancy Khatri</div>
+                <div style="font-size:9px; color:#718096; text-transform:uppercase;">Authorized Signatory</div>
+                <div id="invoiceForCompanyText" style="font-size:9px; font-weight:700; color:#9b111e;">For Crimson Charm</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Official ASK Hospitality Credits Banner -->
+          <div style="text-align:center; margin-top:12px; padding-top:8px; border-top:1px dashed #cbd5e0; font-size:11px; font-weight:600; color:#9b111e; font-style:italic;">
+            ❤️ With Love from ASK Hospitality
+          </div>
         </div>
       </div>
 
-      <!-- Customer Email input for direct sending -->
+      <!-- Action Toolbar (Share to Mobile, PDF, WhatsApp, Print) -->
+      <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:#5f6368; margin-bottom:8px; letter-spacing:0.5px;">
+          📤 Share to Customer's Mobile Number
+        </div>
+
+        <!-- Direct WhatsApp & PDF Share Buttons -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <!-- 1. Send via WhatsApp directly to customer's phone -->
+          <button type="button" class="btn btn-block" id="btnShareInvoiceWhatsApp" style="background:#25D366; color:#ffffff; font-weight:700; height:44px; font-size:14px; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span>💬 Send WhatsApp to</span>
+            <span id="btnWhatsAppCustomerPhone" style="font-weight:800;">Customer</span>
+          </button>
+
+          <!-- 2. Share PDF via native Mobile OS share sheet (WhatsApp / Messages / Files) -->
+          <button type="button" class="btn btn-primary btn-block" id="btnShareInvoicePdf" style="height:44px; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span>📄 Share / Download PDF</span>
+          </button>
+
+          <!-- Secondary Actions Row -->
+          <div style="display:flex; gap:8px; margin-top:2px;">
+            <button type="button" class="btn btn-secondary btn-block" id="btnPrintInvoice" style="height:38px; font-size:12px;">
+              🖨️ Print
+            </button>
+            <button type="button" class="btn btn-outline btn-block" id="btnShareInvoiceSms" style="height:38px; font-size:12px;">
+              📱 SMS Bill
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optional Email Invoice Section -->
       <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label" for="invoiceRecipientEmail">Send Invoice to Email<span class="required">*</span></label>
+        <label class="form-label" for="invoiceRecipientEmail">Send HTML Invoice to Email</label>
         <div style="display:flex; gap:8px;">
           <input type="email" id="invoiceRecipientEmail" class="form-control" placeholder="customer@example.com">
           <button type="button" class="btn btn-primary" id="btnSendInvoiceEmailSubmit" style="flex-shrink:0;">
@@ -1745,10 +2062,144 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div style="display:flex; gap:10px;">
-        <button type="button" class="btn btn-secondary btn-block" id="btnPrintInvoice">🖨️ Print / Save</button>
-        <button type="button" class="btn btn-outline btn-block" id="btnCloseInvoiceBtn">Close</button>
+      <!-- Close Button -->
+      <button type="button" class="btn btn-outline btn-block" id="btnCloseInvoiceBtn">Close Preview</button>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MODAL 5: ADD / EDIT CUSTOMER MODAL
+       ============================================== -->
+  <div class="modal-backdrop" id="modalAddCustomer">
+    <div class="modal-content">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title" id="addCustomerModalTitle">Add New Customer</h3>
+        <button type="button" class="modal-close-x" id="btnCloseAddCustomer">✕</button>
+      </div>
+
+      <input type="hidden" id="editCustomerId" value="">
+
+      <div class="form-group">
+        <label class="form-label" for="inputCustomerName">Customer Name<span class="required">*</span></label>
+        <input type="text" id="inputCustomerName" class="form-control" placeholder="e.g. Rahul Sharma">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputCustomerMobile">Mobile Number<span class="required">*</span></label>
+        <input type="tel" id="inputCustomerMobile" class="form-control" placeholder="e.g. 9876543210 (for WhatsApp &amp; PDF)">
+        <div style="font-size:11px; color:#5f6368; margin-top:3px;">Invoices and PDFs can be shared directly to this number.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputCustomerEmail">Email Address (Optional)</label>
+        <input type="email" id="inputCustomerEmail" class="form-control" placeholder="e.g. customer@example.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputCustomerAddress">Billing Address (Optional)</label>
+        <textarea id="inputCustomerAddress" class="form-control" placeholder="Street, Area, City, Pincode" style="height:60px;"></textarea>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="button" class="btn btn-primary btn-block" id="btnSaveCustomerSubmit">Save Customer</button>
+        <button type="button" class="btn btn-outline btn-block" id="btnCancelCustomer">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MODAL 6: IMPORT CUSTOMERS (CSV & TEXT)
+       ============================================== -->
+  <div class="modal-backdrop" id="modalImportCustomers">
+    <div class="modal-content">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title">📤 Import Customer Data</h3>
+        <button type="button" class="modal-close-x" id="btnCloseImportCustomers">✕</button>
+      </div>
+
+      <div style="font-size:12px; color:#5f6368; line-height:1.4; margin-bottom:12px;">
+        Upload a <strong>.csv</strong> file or paste customer records from Excel/Sheets. Existing customers (matching mobile or ID) will be safely updated, and new ones added automatically.
+      </div>
+
+      <!-- Template helper -->
+      <div style="background:#f1f3f4; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:11px; color:#202124;">
+          <strong>Expected:</strong> Name, Mobile, Email, Address
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" id="btnDownloadCustomerTemplate" style="font-size:11px; padding:3px 8px; height:26px;">
+          📄 Sample Template
+        </button>
+      </div>
+
+      <!-- Mode 1: File Upload -->
+      <div class="form-group">
+        <label class="form-label">Option 1: Choose CSV File</label>
+        <input type="file" id="customerCsvFileInput" accept=".csv,text/csv,text/plain" class="form-control" style="font-size:12px; height:38px;">
+      </div>
+
+      <div style="text-align:center; font-size:11px; color:#718096; margin:8px 0;">— OR —</div>
+
+      <!-- Mode 2: Paste CSV/Text -->
+      <div class="form-group">
+        <label class="form-label" for="customerCsvPasteArea">Option 2: Paste CSV / Excel Rows</label>
+        <textarea id="customerCsvPasteArea" class="form-control" placeholder="Name, Mobile, Email, Address&#10;Rahul Sharma, 9876543210, rahul@example.com, Mumbai&#10;Priya Patel, 9822011223, priya@example.com, Delhi" style="height:90px; font-size:12px; font-family:monospace;"></textarea>
+      </div>
+
+      <!-- Preview stats badge -->
+      <div id="importPreviewStatus" style="display:none; font-size:12px; font-weight:600; color:#137333; background:#e6f4ea; padding:8px 12px; border-radius:6px; margin-bottom:12px;">
+        <!-- Filled by JS -->
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="button" class="btn btn-primary btn-block" id="btnSubmitImportCustomers" disabled>
+          Start Import
+        </button>
+        <button type="button" class="btn btn-outline btn-block" id="btnCancelImportCustomers">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       ADD WHITELISTED USER MODAL
+       ============================================== -->
+  <div class="modal-backdrop" id="modalAddUser">
+    <div class="modal-content">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title">Whitelist New User</h3>
+        <button type="button" class="modal-close-x" id="btnCloseAddUserX">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="newUserEmail">Google Email Address<span class="required">*</span></label>
+        <input type="email" id="newUserEmail" class="form-control" placeholder="user@gmail.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="newUserName">Display Name</label>
+        <input type="text" id="newUserName" class="form-control" placeholder="e.g., Staff Name">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="newUserPassword">App Password / Master PIN<span class="required">*</span></label>
+        <input type="text" id="newUserPassword" class="form-control" placeholder="e.g., secret123" value="welcome123">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="newUserRole">Access Role</label>
+        <select id="newUserRole" class="form-control">
+          <option value="User" selected>User (Staff / Cashier)</option>
+          <option value="Admin">Admin (Full Control)</option>
+        </select>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn btn-primary btn-block" id="btnSubmitAddUser">Whitelist User</button>
+        <button type="button" class="btn btn-outline btn-block" id="btnCancelAddUser">Cancel</button>
       </div>
     </div>
   </div>
@@ -1781,7 +2232,9 @@
         companyPhone: '',
         companyEmail: '',
         companyAddress: '',
-        appCredits: 'With Love from ASK Hospitality'
+        appCredits: 'With Love from ASK Hospitality',
+        signatoryName: 'Mrs. Nancy Khatri',
+        signatorySignature: ''
       },
       currentScreen: 'inventory',
       selectedItemId: null,
@@ -1790,12 +2243,25 @@
       itemPhoto: { base64: '', mime: '', dataUrl: '' },
       stockistPhoto: { base64: '', mime: '', dataUrl: '' },
       logoPhoto: { base64: '', mime: '', dataUrl: '' },
+      signaturePhoto: { base64: '', mime: '', dataUrl: '' },
       currentInvoiceData: null,
       lastSale: null,
       searchQuery: '',
       selectedCategoryFilter: 'all',
       confirmCallback: null,
-      toastTimer: null
+      toastTimer: null,
+      currentUser: null,
+      sessionToken: null,
+      authGoogleToken: '',
+      authGoogleEmail: '',
+      whitelistedUsers: [],
+      googleClientId: '',
+      customers: [],
+      salesHistory: [],
+      sellMode: 'new',
+      customerSearchQuery: '',
+      salesSearchQuery: '',
+      parsedImportCustomers: []
     };
 
     // ========== UTILITIES ==========
@@ -1944,7 +2410,8 @@
         'getStockists', 'addStockist', 'deleteStockist', 'getCategories',
         'addCategory', 'deleteCategory', 'ocrWithGemini', 'saveGeminiApiKey',
         'getGeminiApiKey', 'getCompanySettings', 'saveCompanySettings', 'sendInvoiceEmail',
-        'initializeSheets', 'runTests'
+        'initializeSheets', 'runTests', 'verifyLogin', 'verifySession',
+        'getWhitelistedUsers', 'addWhitelistedUser', 'updateWhitelistedUser', 'deleteWhitelistedUser'
       ];
 
       function executeProxyCall(methodName, args) {
@@ -2060,6 +2527,8 @@
         }
       } else if (screenName === 'sell') {
         populateSellItemSelector();
+        loadCustomers(true);
+        loadSalesHistory(true);
       } else if (screenName === 'pnl') {
         loadPnL(state.activePeriod);
       } else if (screenName === 'more') {
@@ -2067,7 +2536,409 @@
         renderCategories(state.categories);
         loadCompanySettings();
         loadGeminiKey();
+        loadWhitelistedUsers();
+        loadGoogleClientId();
+        loadCustomers(true);
       }
+    }
+
+    // ========== AUTHENTICATION & WHITELIST ACCESS CONTROL ==========
+    function checkAuthSession(onValid) {
+      var saved = null;
+      try {
+        var str = localStorage.getItem('crimson_user_session');
+        if (str) saved = JSON.parse(str);
+      } catch (e) {}
+
+      if (!saved || !saved.email || !saved.sessionToken) {
+        showAuthOverlay(true);
+        return;
+      }
+
+      // Verify with backend
+      getRunner(function(res) {
+        if (res && res.valid && res.user) {
+          state.currentUser = res.user;
+          state.sessionToken = saved.sessionToken;
+          updateUserHeaderBadge(state.currentUser);
+          showAuthOverlay(false);
+          if (onValid) onValid();
+        } else {
+          try { localStorage.removeItem('crimson_user_session'); } catch(e) {}
+          showAuthOverlay(true, res && res.error ? res.error : 'Session expired. Please sign in again.');
+        }
+      }, function(err) {
+        // If offline / proxy unreachable, allow cached session if not expired
+        if (saved && saved.email) {
+          state.currentUser = saved;
+          state.sessionToken = saved.sessionToken;
+          updateUserHeaderBadge(state.currentUser);
+          showAuthOverlay(false);
+          if (onValid) onValid();
+        } else {
+          showAuthOverlay(true, 'Connection error: ' + err);
+        }
+      }, null).verifySession(saved.sessionToken, saved.email);
+    }
+
+    function showAuthOverlay(show, errorMsg) {
+      var overlay = document.getElementById('authOverlay');
+      var errEl = document.getElementById('authErrorMessage');
+      if (!overlay) return;
+
+      if (show) {
+        overlay.className = 'auth-overlay';
+        if (errEl) {
+          if (errorMsg) {
+            errEl.textContent = errorMsg;
+            errEl.style.display = 'block';
+          } else {
+            errEl.style.display = 'none';
+          }
+        }
+        initGoogleIdentity();
+      } else {
+        overlay.className = 'auth-overlay hidden';
+        if (errEl) errEl.style.display = 'none';
+      }
+    }
+
+    function updateUserHeaderBadge(user) {
+      var badge = document.getElementById('headerUserBadge');
+      var nameEl = document.getElementById('headerUserName');
+      var btnLogout = document.getElementById('btnLogout');
+      if (badge && nameEl && user) {
+        nameEl.textContent = user.name || user.email.split('@')[0];
+        badge.style.display = 'inline-flex';
+      }
+      if (btnLogout) {
+        btnLogout.style.display = user ? 'inline-flex' : 'none';
+      }
+    }
+
+    function initGoogleIdentity() {
+      var clientId = state.googleClientId || localStorage.getItem('crimson_google_client_id') || '';
+      var wrapper = document.getElementById('googleBtnWrapper');
+      var triggerBtn = document.getElementById('btnTriggerGoogleAuth');
+
+      if (!clientId) {
+        if (wrapper) wrapper.innerHTML = '';
+        if (triggerBtn) triggerBtn.style.display = 'flex';
+        return;
+      }
+
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false
+          });
+
+          if (wrapper) {
+            wrapper.innerHTML = '';
+            google.accounts.id.renderButton(wrapper, {
+              type: 'standard',
+              shape: 'rectangular',
+              theme: 'outline',
+              text: 'signin_with',
+              size: 'large',
+              logo_alignment: 'left'
+            });
+            if (triggerBtn) triggerBtn.style.display = 'none';
+          }
+        } catch (e) {
+          console.warn('Google Identity initialization error:', e);
+          if (triggerBtn) triggerBtn.style.display = 'flex';
+        }
+      } else {
+        if (triggerBtn) triggerBtn.style.display = 'flex';
+      }
+    }
+
+    function handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) return;
+      state.authGoogleToken = response.credential;
+
+      try {
+        var base64Url = response.credential.split('.')[1];
+        var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        var profile = JSON.parse(jsonPayload);
+        if (profile && profile.email) {
+          state.authGoogleEmail = profile.email;
+          var emailInput = document.getElementById('loginEmail');
+          var badge = document.getElementById('googleAuthSuccessBadge');
+          var textEl = document.getElementById('googleAuthEmailText');
+          if (emailInput) emailInput.value = profile.email;
+          if (textEl) textEl.textContent = profile.email;
+          if (badge) badge.style.display = 'block';
+          showToast('Google Account verified: ' + profile.email, 'success');
+        }
+      } catch (e) {
+        console.warn('Could not decode Google token:', e);
+      }
+    }
+
+    function triggerGoogleSignIn() {
+      var clientId = state.googleClientId || localStorage.getItem('crimson_google_client_id') || '';
+      if (!clientId) {
+        showToast('To use Google Sign-in button, set your Google OAuth Client ID in More > Settings, or enter your whitelisted email & password below.', 'info');
+        var emailInput = document.getElementById('loginEmail');
+        if (emailInput) emailInput.focus();
+        return;
+      }
+      initGoogleIdentity();
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        google.accounts.id.prompt();
+      }
+    }
+
+    function toggleLoginPasswordVisibility() {
+      var input = document.getElementById('loginPassword');
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function submitLogin() {
+      var emailInput = document.getElementById('loginEmail');
+      var passInput = document.getElementById('loginPassword');
+      var errEl = document.getElementById('authErrorMessage');
+
+      var email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+      var password = passInput ? passInput.value : '';
+
+      if (!email) {
+        if (errEl) {
+          errEl.textContent = 'Please enter your whitelisted email address.';
+          errEl.style.display = 'block';
+        }
+        if (emailInput) emailInput.focus();
+        return;
+      }
+
+      if (errEl) errEl.style.display = 'none';
+
+      var payload = {
+        email: email,
+        password: password,
+        googleToken: state.authGoogleToken || '',
+        googleEmail: state.authGoogleEmail || ''
+      };
+
+      getRunner(function(res) {
+        if (res && res.success && res.user) {
+          state.currentUser = res.user;
+          state.sessionToken = res.user.sessionToken;
+          try {
+            localStorage.setItem('crimson_user_session', JSON.stringify(res.user));
+          } catch(e) {}
+          updateUserHeaderBadge(res.user);
+          showAuthOverlay(false);
+          showToast(res.message || ('Welcome back, ' + res.user.name + '!'), 'success');
+
+          // Load data after successful authentication
+          loadCompanySettings();
+          loadInventory();
+          loadCategories();
+          loadStockists();
+        } else {
+          var msg = (res && res.error) ? res.error : 'Authentication failed. Please verify your credentials.';
+          if (errEl) {
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+          }
+          showToast(msg, 'error');
+        }
+      }, function(err) {
+        if (errEl) {
+          errEl.textContent = 'Error: ' + err;
+          errEl.style.display = 'block';
+        }
+        showToast('Login error: ' + err, 'error');
+      }, 'Verifying authorization...').verifyLogin(payload);
+    }
+
+    function logoutUser() {
+      showConfirm('Are you sure you want to log out of Crimson Charm?', function() {
+        try {
+          localStorage.removeItem('crimson_user_session');
+        } catch (e) {}
+        state.currentUser = null;
+        state.sessionToken = null;
+        state.authGoogleToken = '';
+        state.authGoogleEmail = '';
+        var emailInput = document.getElementById('loginEmail');
+        var passInput = document.getElementById('loginPassword');
+        var badge = document.getElementById('googleAuthSuccessBadge');
+        if (emailInput) emailInput.value = '';
+        if (passInput) passInput.value = '';
+        if (badge) badge.style.display = 'none';
+        updateUserHeaderBadge(null);
+        showAuthOverlay(true);
+        showToast('You have been signed out', 'info');
+      });
+    }
+
+    // ========== WHITELIST MANAGEMENT (MORE SCREEN) ==========
+    function loadWhitelistedUsers() {
+      getRunner(function(users) {
+        state.whitelistedUsers = users || [];
+        renderWhitelistedUsers(state.whitelistedUsers);
+      }, function(err) {
+        console.error('Failed to load whitelisted users:', err);
+      }).getWhitelistedUsers();
+    }
+
+    function renderWhitelistedUsers(users) {
+      var container = document.getElementById('whitelistedUsersContainer');
+      if (!container) return;
+
+      if (!users || users.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding:16px 0;">' +
+          '<div style="font-size:13px; color:#5f6368;">No whitelisted users found. Tap "+ Whitelist User" to add one.</div>' +
+          '</div>';
+        return;
+      }
+
+      var html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+      for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        var roleBadgeClass = u.role === 'Admin' ? 'user-pill admin' : 'user-pill';
+        var statusBadge = u.status === 'Active' ?
+          '<span style="color:#137333; font-size:11px; font-weight:600;">● Active</span>' :
+          '<span style="color:#c5221f; font-size:11px; font-weight:600;">○ Deactivated</span>';
+
+        html += '<div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">' +
+          '<div style="flex:1; min-width:0; padding-right:8px;">' +
+          '<div style="font-weight:600; font-size:13px; color:#202124; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(u.email) + '</div>' +
+          '<div style="display:flex; align-items:center; gap:6px; margin-top:3px;">' +
+          '<span class="' + roleBadgeClass + '">' + escapeHtml(u.role) + '</span>' +
+          statusBadge +
+          (u.name ? '<span style="font-size:11px; color:#5f6368;">· ' + escapeHtml(u.name) + '</span>' : '') +
+          '</div>' +
+          (u.lastLogin ? '<div style="font-size:10px; color:#5f6368; margin-top:2px;">Last login: ' + u.lastLogin + '</div>' : '') +
+          '</div>' +
+          '<div style="display:flex; gap:6px;">' +
+          '<button type="button" class="btn btn-outline btn-sm btnToggleUserStatus" data-id="' + u.id + '" data-status="' + u.status + '" style="font-size:11px; padding:4px 8px;">' +
+          (u.status === 'Active' ? 'Deactivate' : 'Activate') +
+          '</button>' +
+          '<button type="button" class="btn btn-outline btn-sm btnDeleteUser" data-id="' + u.id + '" data-email="' + escapeHtml(u.email) + '" style="font-size:11px; padding:4px 8px; color:#c5221f; border-color:#fad2cf;">' +
+          '✕' +
+          '</button>' +
+          '</div>' +
+          '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function openAddUserModal() {
+      var modal = document.getElementById('modalAddUser');
+      var emailInput = document.getElementById('newUserEmail');
+      var nameInput = document.getElementById('newUserName');
+      var passInput = document.getElementById('newUserPassword');
+      var roleSelect = document.getElementById('newUserRole');
+      if (emailInput) emailInput.value = '';
+      if (nameInput) nameInput.value = '';
+      if (passInput) passInput.value = 'welcome123';
+      if (roleSelect) roleSelect.value = 'User';
+      if (modal) modal.className = 'modal-backdrop active';
+    }
+
+    function closeAddUserModal() {
+      var modal = document.getElementById('modalAddUser');
+      if (modal) modal.className = 'modal-backdrop';
+    }
+
+    function submitNewWhitelistedUser() {
+      var emailInput = document.getElementById('newUserEmail');
+      var nameInput = document.getElementById('newUserName');
+      var passInput = document.getElementById('newUserPassword');
+      var roleSelect = document.getElementById('newUserRole');
+
+      var email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+      var name = nameInput ? nameInput.value.trim() : '';
+      var password = passInput ? passInput.value.trim() : '';
+      var role = roleSelect ? roleSelect.value : 'User';
+
+      if (!email || email.indexOf('@') === -1) {
+        showToast('Please enter a valid Google email address', 'error');
+        if (emailInput) emailInput.focus();
+        return;
+      }
+      if (!password) {
+        showToast('Please specify a password/PIN for this user', 'error');
+        if (passInput) passInput.focus();
+        return;
+      }
+
+      var payload = {
+        email: email,
+        name: name || email.split('@')[0],
+        password: password,
+        role: role
+      };
+
+      getRunner(function(res) {
+        if (res && res.success) {
+          showToast('User ' + email + ' added to whitelist!', 'success');
+          closeAddUserModal();
+          loadWhitelistedUsers();
+        } else {
+          showToast('Failed to add user: ' + (res && res.error ? res.error : 'Unknown error'), 'error');
+        }
+      }, function(err) {
+        showToast('Error adding user: ' + err, 'error');
+      }, 'Whitelisting user...').addWhitelistedUser(payload);
+    }
+
+    function toggleUserStatus(userId, currentStatus) {
+      var newStatus = currentStatus === 'Active' ? 'Deactivated' : 'Active';
+      getRunner(function(res) {
+        showToast('User status updated to ' + newStatus, 'success');
+        loadWhitelistedUsers();
+      }, function(err) {
+        showToast('Error updating status: ' + err, 'error');
+      }, 'Updating user...').updateWhitelistedUser(userId, { status: newStatus });
+    }
+
+    function deleteWhitelistedUserAction(userId, email) {
+      showConfirm('Are you sure you want to remove ' + email + ' from the whitelist?', function() {
+        getRunner(function(res) {
+          showToast('User removed from whitelist', 'success');
+          loadWhitelistedUsers();
+        }, function(err) {
+          showToast('Error removing user: ' + err, 'error');
+        }, 'Removing user...').deleteWhitelistedUser(userId);
+      });
+    }
+
+    function loadGoogleClientId() {
+      var saved = localStorage.getItem('crimson_google_client_id') || '';
+      var input = document.getElementById('inputGoogleClientId');
+      if (input && saved) input.value = saved;
+      state.googleClientId = saved;
+    }
+
+    function saveGoogleClientId() {
+      var input = document.getElementById('inputGoogleClientId');
+      var val = input ? input.value.trim() : '';
+      try {
+        if (val) {
+          localStorage.setItem('crimson_google_client_id', val);
+          state.googleClientId = val;
+          showToast('Google OAuth Client ID saved!', 'success');
+          initGoogleIdentity();
+        } else {
+          localStorage.removeItem('crimson_google_client_id');
+          state.googleClientId = '';
+          showToast('Google Client ID cleared', 'info');
+          initGoogleIdentity();
+        }
+      } catch(e) {}
     }
 
     // ========== DATA LOADING ==========
@@ -2748,6 +3619,14 @@
       var custName = document.getElementById('sellCustomerName') ? document.getElementById('sellCustomerName').value.trim() : '';
       var custEmail = document.getElementById('sellCustomerEmail') ? document.getElementById('sellCustomerEmail').value.trim() : '';
       var custPhone = document.getElementById('sellCustomerPhone') ? document.getElementById('sellCustomerPhone').value.trim() : '';
+      var custAddress = document.getElementById('sellCustomerAddress') ? document.getElementById('sellCustomerAddress').value.trim() : '';
+
+      var customerPayload = {
+        name: custName,
+        mobile: custPhone,
+        email: custEmail,
+        address: custAddress
+      };
 
       getRunner(function(res) {
         var profitStr = res && res.profit !== undefined ? formatCurrency(res.profit) : '';
@@ -2762,9 +3641,10 @@
           sellPrice: (res && res.sellPrice) ? res.sellPrice : (sellPricePerUnit || item.sellPrice),
           revenue: (res && res.revenue) ? res.revenue : (sellPricePerUnit * qty),
           date: (res && res.date) ? res.date : new Date().toLocaleString(),
-          customerName: custName || 'Valued Customer',
-          customerEmail: custEmail || '',
-          customerPhone: custPhone || ''
+          customerName: custName || (res && res.customerName) || 'Valued Customer',
+          customerEmail: custEmail || (res && res.customerEmail) || '',
+          customerPhone: custPhone || (res && res.customerMobile) || '',
+          customerAddress: custAddress || (res && res.customerAddress) || ''
         };
 
         // Show post-sale action card
@@ -2775,15 +3655,17 @@
           postSaleCard.style.display = 'block';
         }
 
-        // If customer email was provided upfront, auto-open invoice modal
-        if (custEmail) {
+        // If customer details were provided, or user wants immediate invoice, offer it
+        if (custPhone || custEmail) {
           openInvoiceModalForSale(state.lastSale);
         }
 
         loadInventory(false);
+        loadCustomers(true);
+        loadSalesHistory(true);
       }, function(err) {
         showToast('Failed to record sale: ' + err, 'error');
-      }, 'Recording sale...').recordSale(itemId, qty, markupPct, discountPct);
+      }, 'Recording sale...').recordSale(itemId, qty, markupPct, discountPct, customerPayload);
     }
 
     // ========== P&L SCREEN ==========
@@ -3204,11 +4086,20 @@
         var previewImg = document.getElementById('logoPreviewImg');
         var iconEl = document.getElementById('logoPlaceholderIcon');
 
+        var signatoryInput = document.getElementById('inputSignatoryName');
+        var sigUrlInput = document.getElementById('inputCompanySignatureUrl');
+        var sigPreviewImg = document.getElementById('signaturePreviewImg');
+        var sigIconEl = document.getElementById('signaturePlaceholderIcon');
+        var sigClearBtn = document.getElementById('btnClearSignature');
+
         if (nameInput) nameInput.value = settings.companyName || 'Crimson Charm';
         if (phoneInput) phoneInput.value = settings.companyPhone || '';
         if (emailInput) emailInput.value = settings.companyEmail || '';
         if (addrInput) addrInput.value = settings.companyAddress || '';
         if (logoUrlInput) logoUrlInput.value = settings.companyLogo || '';
+        if (signatoryInput) signatoryInput.value = settings.signatoryName || 'Mrs. Nancy Khatri';
+        if (sigUrlInput) sigUrlInput.value = settings.signatorySignature || '';
+
         if (previewImg && iconEl) {
           if (settings.companyLogo) {
             previewImg.src = settings.companyLogo;
@@ -3218,6 +4109,20 @@
             previewImg.src = '';
             previewImg.style.display = 'none';
             iconEl.style.display = 'block';
+          }
+        }
+
+        if (sigPreviewImg && sigIconEl) {
+          if (settings.signatorySignature) {
+            sigPreviewImg.src = settings.signatorySignature;
+            sigPreviewImg.style.display = 'block';
+            sigIconEl.style.display = 'none';
+            if (sigClearBtn) sigClearBtn.style.display = 'inline-block';
+          } else {
+            sigPreviewImg.src = '';
+            sigPreviewImg.style.display = 'none';
+            sigIconEl.style.display = 'block';
+            if (sigClearBtn) sigClearBtn.style.display = 'none';
           }
         }
       }, function(err) {
@@ -3243,12 +4148,52 @@
       });
     }
 
+    function handleSignatureFileSelect(event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+      showLoading(true, 'Processing signature...');
+      processImageFile(file, function(result) {
+        showLoading(false);
+        state.signaturePhoto = result;
+        var previewImg = document.getElementById('signaturePreviewImg');
+        var iconEl = document.getElementById('signaturePlaceholderIcon');
+        var clearBtn = document.getElementById('btnClearSignature');
+        if (previewImg) {
+          previewImg.src = result.dataUrl;
+          previewImg.style.display = 'block';
+        }
+        if (iconEl) iconEl.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'inline-block';
+        showToast('Signature image selected! Tap Save Company Profile to save.', 'info');
+      });
+    }
+
+    function clearSignatureSelection() {
+      state.signaturePhoto = { base64: '', mime: '', dataUrl: '' };
+      var sigUrlInput = document.getElementById('inputCompanySignatureUrl');
+      if (sigUrlInput) sigUrlInput.value = '';
+      var previewImg = document.getElementById('signaturePreviewImg');
+      var iconEl = document.getElementById('signaturePlaceholderIcon');
+      var clearBtn = document.getElementById('btnClearSignature');
+      var fileInput = document.getElementById('signatureFileInput');
+      if (fileInput) fileInput.value = '';
+      if (previewImg) {
+        previewImg.src = '';
+        previewImg.style.display = 'none';
+      }
+      if (iconEl) iconEl.style.display = 'block';
+      if (clearBtn) clearBtn.style.display = 'none';
+      showToast('Signature cleared. Tap Save Company Profile to commit.', 'info');
+    }
+
     function saveCompanyProfile() {
       var nameInput = document.getElementById('inputCompanyName');
       var phoneInput = document.getElementById('inputCompanyPhone');
       var emailInput = document.getElementById('inputCompanyEmail');
       var addrInput = document.getElementById('inputCompanyAddress');
       var logoUrlInput = document.getElementById('inputCompanyLogoUrl');
+      var signatoryInput = document.getElementById('inputSignatoryName');
+      var sigUrlInput = document.getElementById('inputCompanySignatureUrl');
 
       var payload = {
         companyName: nameInput ? nameInput.value.trim() : 'Crimson Charm',
@@ -3257,19 +4202,611 @@
         companyAddress: addrInput ? addrInput.value.trim() : '',
         companyLogo: logoUrlInput ? logoUrlInput.value.trim() : '',
         logoBase64: state.logoPhoto.base64 || '',
-        logoMimeType: state.logoPhoto.mime || ''
+        logoMimeType: state.logoPhoto.mime || '',
+        signatoryName: signatoryInput ? signatoryInput.value.trim() : 'Mrs. Nancy Khatri',
+        signatorySignature: sigUrlInput ? sigUrlInput.value.trim() : '',
+        signatureBase64: state.signaturePhoto.base64 || '',
+        signatureMimeType: state.signaturePhoto.mime || ''
       };
 
       getRunner(function(res) {
-        showToast('Company profile & logo saved!', 'success');
+        showToast('Company profile & signature saved!', 'success');
         state.logoPhoto = { base64: '', mime: '', dataUrl: '' };
+        state.signaturePhoto = { base64: '', mime: '', dataUrl: '' };
         loadCompanySettings();
       }, function(err) {
         showToast('Failed to save profile: ' + err, 'error');
       }, 'Saving company profile...').saveCompanySettings(payload);
     }
 
-    // ========== INVOICE GENERATOR & EMAILER ==========
+    // ========== CUSTOMER DIRECTORY & ON-DEMAND INVOICE MAKER ==========
+    function cleanMobileForWhatsApp(phone) {
+      if (!phone) return '';
+      var digits = String(phone).replace(/\D/g, '');
+      if (digits.length === 10) {
+        return '91' + digits;
+      }
+      if (digits.length === 11 && digits.indexOf('0') === 0) {
+        return '91' + digits.slice(1);
+      }
+      return digits;
+    }
+
+    function formatInvoiceWhatsAppText(inv) {
+      if (!inv) return '';
+      var company = state.companySettings || {};
+      var compName = company.companyName || 'Crimson Charm';
+      var lines = [];
+      lines.push('✨ *OFFICIAL INVOICE - ' + compName.toUpperCase() + '* ✨');
+      lines.push('*Invoice No:* #' + inv.invoiceNumber);
+      lines.push('*Date:* ' + inv.date);
+      lines.push('----------------------------------');
+      lines.push('*Billed To:* ' + (inv.customerName || 'Valued Customer'));
+      if (inv.customerPhone) lines.push('*Mobile:* ' + inv.customerPhone);
+      if (inv.customerAddress) lines.push('*Address:* ' + inv.customerAddress);
+      lines.push('----------------------------------');
+      lines.push('📦 *ITEMS:*');
+      var items = inv.items || [];
+      for (var i = 0; i < items.length; i++) {
+        var itm = items[i];
+        var q = itm.qty || 1;
+        var amt = itm.amount || (q * (itm.unitPrice || 0));
+        lines.push('• ' + itm.name + ' (x' + q + ') = ' + formatCurrency(amt));
+      }
+      lines.push('----------------------------------');
+      lines.push('💰 *GRAND TOTAL:* ' + formatCurrency(inv.totalAmount));
+      lines.push('----------------------------------');
+      lines.push('Thank you for choosing ' + compName + '!');
+      lines.push('❤️ _With Love from ASK Hospitality_');
+      return lines.join('\n');
+    }
+
+    function loadCustomers(silent) {
+      if (!silent) showToast('Loading customers...', 'info');
+      getRunner(function(res) {
+        state.customers = Array.isArray(res) ? res : [];
+        renderCustomers(state.customers);
+        populateCustomerDatalist();
+      }, function(err) {
+        console.error('Failed to load customers:', err);
+      }).getCustomers();
+    }
+
+    function renderCustomers(customers) {
+      var container = document.getElementById('customersListContainer');
+      var emptyEl = document.getElementById('customersEmptyText');
+      if (!container) return;
+
+      if (!customers || customers.length === 0) {
+        container.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+
+      var html = '';
+      for (var i = 0; i < customers.length; i++) {
+        var c = customers[i];
+        var cleanPhone = cleanMobileForWhatsApp(c.mobile);
+        var waLink = cleanPhone ? ('https://api.whatsapp.com/send?phone=' + cleanPhone) : '';
+
+        html += '<div class="card" style="margin-bottom:10px; padding:12px; border:1px solid #dadce0;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
+            '<div>' +
+              '<div style="font-weight:700; font-size:14px; color:#202124;">' + escapeHtml(c.name || 'Customer') + '</div>' +
+              (c.mobile ? '<div style="font-size:12px; color:#1a73e8; margin-top:2px; font-weight:600;">' +
+                '<a href="tel:' + escapeHtml(c.mobile) + '" style="color:#1a73e8; text-decoration:none;">📞 ' + escapeHtml(c.mobile) + '</a>' +
+              '</div>' : '') +
+              (c.email ? '<div style="font-size:11px; color:#5f6368; margin-top:1px;">✉️ ' + escapeHtml(c.email) + '</div>' : '') +
+              (c.address ? '<div style="font-size:11px; color:#718096; margin-top:1px;">📍 ' + escapeHtml(c.address) + '</div>' : '') +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:13px; font-weight:800; color:#9b111e;">' + formatCurrency(c.totalPurchases || 0) + '</div>' +
+              '<div style="font-size:11px; color:#5f6368;">' + (c.invoicesCount || 0) + ' Invoices</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:8px;">' +
+            (waLink ? '<a href="' + waLink + '" target="_blank" class="btn btn-outline btn-sm" style="flex:1; text-align:center; text-decoration:none; color:#25D366; border-color:#25D366; font-size:11px; padding:4px 6px;">💬 WhatsApp</a>' : '') +
+            '<button type="button" class="btn btn-primary btn-sm btnCustomerNewInvoice" data-id="' + escapeHtml(c.id) + '" style="flex:1; font-size:11px; padding:4px 6px;">📄 Invoice</button>' +
+            '<button type="button" class="btn btn-secondary btn-sm btnEditCustomer" data-id="' + escapeHtml(c.id) + '" style="font-size:11px; padding:4px 8px;">✏️</button>' +
+            '<button type="button" class="btn btn-danger btn-sm btnDeleteCustomer" data-id="' + escapeHtml(c.id) + '" data-name="' + escapeHtml(c.name) + '" style="font-size:11px; padding:4px 8px;">🗑️</button>' +
+          '</div>' +
+        '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function filterCustomers(query) {
+      state.customerSearchQuery = query || '';
+      var q = (query || '').toLowerCase().trim();
+      if (!q) {
+        renderCustomers(state.customers);
+        return;
+      }
+      var filtered = state.customers.filter(function(c) {
+        var nameMatch = (c.name || '').toLowerCase().indexOf(q) !== -1;
+        var phoneMatch = (c.mobile || '').replace(/\D/g, '').indexOf(q.replace(/\D/g, '')) !== -1;
+        var emailMatch = (c.email || '').toLowerCase().indexOf(q) !== -1;
+        return nameMatch || phoneMatch || emailMatch;
+      });
+      renderCustomers(filtered);
+    }
+
+    function populateCustomerDatalist() {
+      var dl = document.getElementById('sellCustomerDatalist');
+      if (!dl) return;
+      var opts = '';
+      for (var i = 0; i < state.customers.length; i++) {
+        var c = state.customers[i];
+        opts += '<option value="' + escapeHtml(c.name) + (c.mobile ? ' (' + escapeHtml(c.mobile) + ')' : '') + '"></option>';
+      }
+      dl.innerHTML = opts;
+    }
+
+    function onCustomerSelectInSell() {
+      var input = document.getElementById('sellCustomerName');
+      if (!input) return;
+      var val = input.value.trim();
+      if (!val) return;
+
+      for (var i = 0; i < state.customers.length; i++) {
+        var c = state.customers[i];
+        if (val === c.name || val.indexOf(c.name) === 0 || (c.mobile && val.indexOf(c.mobile) !== -1)) {
+          input.value = c.name;
+          var phoneEl = document.getElementById('sellCustomerPhone');
+          var emailEl = document.getElementById('sellCustomerEmail');
+          var addrEl = document.getElementById('sellCustomerAddress');
+          if (phoneEl && c.mobile) phoneEl.value = c.mobile;
+          if (emailEl && c.email) emailEl.value = c.email;
+          if (addrEl && c.address) addrEl.value = c.address;
+          break;
+        }
+      }
+    }
+
+    function openAddCustomerModal(customer) {
+      var modal = document.getElementById('modalAddCustomer');
+      var titleEl = document.getElementById('addCustomerModalTitle');
+      var idEl = document.getElementById('editCustomerId');
+      var nameEl = document.getElementById('inputCustomerName');
+      var mobEl = document.getElementById('inputCustomerMobile');
+      var emEl = document.getElementById('inputCustomerEmail');
+      var addrEl = document.getElementById('inputCustomerAddress');
+
+      if (customer) {
+        if (titleEl) titleEl.textContent = 'Edit Customer';
+        if (idEl) idEl.value = customer.id || '';
+        if (nameEl) nameEl.value = customer.name || '';
+        if (mobEl) mobEl.value = customer.mobile || '';
+        if (emEl) emEl.value = customer.email || '';
+        if (addrEl) addrEl.value = customer.address || '';
+      } else {
+        if (titleEl) titleEl.textContent = 'Add New Customer';
+        if (idEl) idEl.value = '';
+        if (nameEl) nameEl.value = '';
+        if (mobEl) mobEl.value = '';
+        if (emEl) emEl.value = '';
+        if (addrEl) addrEl.value = '';
+      }
+
+      if (modal) modal.className = 'modal-backdrop active';
+    }
+
+    function closeAddCustomerModal() {
+      var modal = document.getElementById('modalAddCustomer');
+      if (modal) modal.className = 'modal-backdrop';
+    }
+
+    function submitCustomerForm() {
+      var id = document.getElementById('editCustomerId') ? document.getElementById('editCustomerId').value : '';
+      var name = document.getElementById('inputCustomerName') ? document.getElementById('inputCustomerName').value.trim() : '';
+      var mobile = document.getElementById('inputCustomerMobile') ? document.getElementById('inputCustomerMobile').value.trim() : '';
+      var email = document.getElementById('inputCustomerEmail') ? document.getElementById('inputCustomerEmail').value.trim() : '';
+      var address = document.getElementById('inputCustomerAddress') ? document.getElementById('inputCustomerAddress').value.trim() : '';
+
+      if (!name) {
+        showToast('Please enter customer name', 'error');
+        return;
+      }
+      if (!mobile) {
+        showToast('Please enter customer mobile number', 'error');
+        return;
+      }
+
+      var payload = {
+        id: id || undefined,
+        name: name,
+        mobile: mobile,
+        email: email,
+        address: address
+      };
+
+      getRunner(function(res) {
+        showToast(id ? 'Customer updated!' : 'Customer added!', 'success');
+        closeAddCustomerModal();
+        loadCustomers(true);
+      }, function(err) {
+        showToast('Failed to save customer: ' + err, 'error');
+      }, 'Saving customer...').addOrUpdateCustomer(payload);
+    }
+
+    function deleteCustomerAction(id, name) {
+      if (!id) return;
+      showConfirm('Delete customer "' + (name || 'Customer') + '"?', function() {
+        getRunner(function(res) {
+          showToast('Customer deleted', 'info');
+          loadCustomers(true);
+        }, function(err) {
+          showToast('Failed to delete customer: ' + err, 'error');
+        }, 'Deleting customer...').deleteCustomer(id);
+      });
+    }
+
+    // ========== CUSTOMER IMPORT & EXPORT (CSV) ==========
+    function escapeCsvCell(val) {
+      if (val === null || val === undefined) return '""';
+      var str = String(val).replace(/"/g, '""');
+      return '"' + str + '"';
+    }
+
+    function exportCustomersToCsv() {
+      var list = state.customers || [];
+      if (list.length === 0) {
+        showToast('No customer records to export', 'warning');
+        return;
+      }
+
+      var headers = [
+        'Customer ID',
+        'Customer Name',
+        'Mobile Number',
+        'Email Address',
+        'Billing Address',
+        'Total Purchases (INR)',
+        'Invoices Count',
+        'Date Added',
+        'Last Purchase Date'
+      ];
+
+      var csvRows = [];
+      csvRows.push(headers.map(escapeCsvCell).join(','));
+
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        var row = [
+          c.id || '',
+          c.name || '',
+          c.mobile || '',
+          c.email || '',
+          c.address || '',
+          c.totalPurchases || 0,
+          c.invoicesCount || 0,
+          c.dateAdded || '',
+          c.lastPurchaseDate || ''
+        ];
+        csvRows.push(row.map(escapeCsvCell).join(','));
+      }
+
+      var csvContent = '\uFEFF' + csvRows.join('\r\n');
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      var dateStamp = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = 'crimson_charm_customers_' + dateStamp + '.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast('Exported ' + list.length + ' customers to CSV!', 'success');
+    }
+
+    function downloadCustomerCsvTemplate() {
+      var headers = ['Name', 'Mobile', 'Email', 'Address', 'Total Purchases', 'Invoices Count'];
+      var sampleRows = [
+        ['Rahul Sharma', '9876543210', 'rahul@example.com', 'Flat 101, Bandra, Mumbai', '0', '0'],
+        ['Priya Patel', '9822011223', 'priya@example.com', 'Sector 15, Gurgaon', '0', '0']
+      ];
+
+      var csvRows = [headers.map(escapeCsvCell).join(',')];
+      for (var i = 0; i < sampleRows.length; i++) {
+        csvRows.push(sampleRows[i].map(escapeCsvCell).join(','));
+      }
+
+      var blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'crimson_charm_customers_template.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function openImportCustomersModal() {
+      state.parsedImportCustomers = [];
+      var modal = document.getElementById('modalImportCustomers');
+      var fileInput = document.getElementById('customerCsvFileInput');
+      var pasteArea = document.getElementById('customerCsvPasteArea');
+      var statusEl = document.getElementById('importPreviewStatus');
+      var submitBtn = document.getElementById('btnSubmitImportCustomers');
+
+      if (fileInput) fileInput.value = '';
+      if (pasteArea) pasteArea.value = '';
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.style.display = 'none';
+      }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Start Import';
+      }
+
+      if (modal) modal.className = 'modal-backdrop active';
+    }
+
+    function closeImportCustomersModal() {
+      var modal = document.getElementById('modalImportCustomers');
+      if (modal) modal.className = 'modal-backdrop';
+      state.parsedImportCustomers = [];
+    }
+
+    function parseCsvLine_(line, delimiter) {
+      var delim = delimiter || ',';
+      var result = [];
+      var curVal = '';
+      var inQuotes = false;
+
+      for (var i = 0; i < line.length; i++) {
+        var char = line.charAt(i);
+        if (char === '"') {
+          if (inQuotes && line.charAt(i + 1) === '"') {
+            curVal += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === delim && !inQuotes) {
+          result.push(curVal.trim());
+          curVal = '';
+        } else {
+          curVal += char;
+        }
+      }
+      result.push(curVal.trim());
+      return result;
+    }
+
+    function parseCustomerCsvRawText(rawText) {
+      if (!rawText || !rawText.trim()) {
+        state.parsedImportCustomers = [];
+        updateImportPreviewBadge(0);
+        return;
+      }
+
+      var lines = rawText.split(/\r\n|\n|\r/);
+      var validLines = [];
+      for (var l = 0; l < lines.length; l++) {
+        if (lines[l].trim()) validLines.push(lines[l].trim());
+      }
+
+      if (validLines.length === 0) {
+        state.parsedImportCustomers = [];
+        updateImportPreviewBadge(0);
+        return;
+      }
+
+      var firstLine = validLines[0];
+      var delimiter = (firstLine.indexOf('\t') !== -1 && firstLine.indexOf(',') === -1) ? '\t' : ',';
+
+      var firstTokens = parseCsvLine_(firstLine, delimiter);
+      var hasHeader = false;
+      var colName = 0;
+      var colMobile = 1;
+      var colEmail = 2;
+      var colAddress = 3;
+      var colPurchases = 4;
+      var colInvoices = 5;
+
+      var lowerTokens = firstTokens.map(function(t) { return t.toLowerCase(); });
+      var foundHeaderSignals = 0;
+      for (var h = 0; h < lowerTokens.length; h++) {
+        var tok = lowerTokens[h];
+        if (tok.indexOf('name') !== -1) { colName = h; foundHeaderSignals++; }
+        else if (tok.indexOf('mobile') !== -1 || tok.indexOf('phone') !== -1) { colMobile = h; foundHeaderSignals++; }
+        else if (tok.indexOf('email') !== -1) { colEmail = h; foundHeaderSignals++; }
+        else if (tok.indexOf('address') !== -1) { colAddress = h; foundHeaderSignals++; }
+        else if (tok.indexOf('purchase') !== -1 || tok.indexOf('amount') !== -1 || tok.indexOf('total') !== -1) { colPurchases = h; foundHeaderSignals++; }
+        else if (tok.indexOf('invoice') !== -1) { colInvoices = h; foundHeaderSignals++; }
+      }
+
+      var startIndex = 0;
+      if (foundHeaderSignals >= 1) {
+        hasHeader = true;
+        startIndex = 1;
+      }
+
+      var parsedList = [];
+      for (var r = startIndex; r < validLines.length; r++) {
+        var tokens = parseCsvLine_(validLines[r], delimiter);
+        if (tokens.length === 0) continue;
+
+        var name = (tokens[colName] || '').replace(/^["']|["']$/g, '').trim();
+        var mobile = (tokens[colMobile] || '').replace(/^["']|["']$/g, '').trim();
+        var email = (tokens[colEmail] || '').replace(/^["']|["']$/g, '').trim();
+        var address = (tokens[colAddress] || '').replace(/^["']|["']$/g, '').trim();
+        var totalPurchases = parseFloat((tokens[colPurchases] || '0').replace(/[^0-9.]/g, '')) || 0;
+        var invoicesCount = parseInt((tokens[colInvoices] || '0').replace(/[^0-9]/g, ''), 10) || 0;
+
+        if (name || mobile) {
+          parsedList.push({
+            name: name,
+            mobile: mobile,
+            email: email,
+            address: address,
+            totalPurchases: totalPurchases,
+            invoicesCount: invoicesCount
+          });
+        }
+      }
+
+      state.parsedImportCustomers = parsedList;
+      updateImportPreviewBadge(parsedList.length);
+    }
+
+    function updateImportPreviewBadge(count) {
+      var statusEl = document.getElementById('importPreviewStatus');
+      var submitBtn = document.getElementById('btnSubmitImportCustomers');
+      if (!statusEl || !submitBtn) return;
+
+      if (count > 0) {
+        statusEl.innerHTML = '✓ <strong>' + count + '</strong> valid customer records detected and ready to import.';
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#137333';
+        statusEl.style.background = '#e6f4ea';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Start Import (' + count + ' Customers)';
+      } else {
+        statusEl.innerHTML = '⚠️ No valid records found. Make sure columns contain customer names or mobile numbers.';
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#c5221f';
+        statusEl.style.background = '#fce8e6';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Start Import';
+      }
+    }
+
+    function handleCustomerCsvFileSelect(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(evt) {
+        var text = evt.target.result;
+        var pasteArea = document.getElementById('customerCsvPasteArea');
+        if (pasteArea) pasteArea.value = text;
+        parseCustomerCsvRawText(text);
+      };
+      reader.readAsText(file);
+    }
+
+    function submitCustomerImport() {
+      var list = state.parsedImportCustomers || [];
+      if (list.length === 0) {
+        showToast('No customer data to import', 'error');
+        return;
+      }
+
+      showLoading(true, 'Importing ' + list.length + ' customers...');
+      getRunner(function(res) {
+        showLoading(false);
+        if (res && res.success) {
+          showToast(res.message || ('Successfully processed ' + list.length + ' customers!'), 'success');
+          closeImportCustomersModal();
+          loadCustomers(true);
+        } else {
+          showToast('Import failed: ' + (res && res.error ? res.error : 'Unknown error'), 'error');
+        }
+      }, function(err) {
+        showLoading(false);
+        showToast('Import failed: ' + err, 'error');
+      }, 'Importing customers...').batchImportCustomers(list);
+    }
+
+    // ========== SALES HISTORY & ON-DEMAND INVOICES ==========
+    function switchSellMode(mode) {
+      state.sellMode = mode;
+      var btnNew = document.getElementById('btnSellModeNew');
+      var btnHist = document.getElementById('btnSellModeHistory');
+      var conNew = document.getElementById('sellNewSaleContainer');
+      var conHist = document.getElementById('sellHistoryContainer');
+
+      if (mode === 'history') {
+        if (btnNew) btnNew.className = 'segment-btn';
+        if (btnHist) btnHist.className = 'segment-btn active';
+        if (conNew) conNew.style.display = 'none';
+        if (conHist) conHist.style.display = 'block';
+        loadSalesHistory();
+      } else {
+        if (btnNew) btnNew.className = 'segment-btn active';
+        if (btnHist) btnHist.className = 'segment-btn';
+        if (conNew) conNew.style.display = 'block';
+        if (conHist) conHist.style.display = 'none';
+      }
+    }
+
+    function loadSalesHistory(silent) {
+      if (!silent) showToast('Loading sales ledger...', 'info');
+      getRunner(function(res) {
+        state.salesHistory = Array.isArray(res) ? res : [];
+        renderSalesHistory(state.salesHistory);
+      }, function(err) {
+        console.error('Failed to load sales history:', err);
+      }).getSales('all');
+    }
+
+    function renderSalesHistory(sales) {
+      var container = document.getElementById('salesHistoryListContainer');
+      var emptyEl = document.getElementById('salesHistoryEmptyText');
+      if (!container) return;
+
+      if (!sales || sales.length === 0) {
+        container.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+
+      var html = '';
+      for (var i = 0; i < sales.length; i++) {
+        var s = sales[i];
+        var custDisplay = s.customerName ? (s.customerName + (s.customerMobile ? ' (' + s.customerMobile + ')' : '')) : 'Walk-in Customer';
+        html += '<div class="card" style="margin-bottom:10px; padding:12px; border:1px solid #dadce0;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">' +
+            '<div>' +
+              '<div style="font-weight:700; font-size:14px; color:#202124;">' + escapeHtml(s.itemName || 'Item') + '</div>' +
+              '<div style="font-size:12px; color:#5f6368; margin-top:2px;">' +
+                'Qty: <strong>' + (s.qtySold || 1) + '</strong> · ' + formatCurrency(s.sellPrice || 0) + ' each' +
+              '</div>' +
+              '<div style="font-size:11px; color:#1a73e8; margin-top:3px; font-weight:600;">👤 ' + escapeHtml(custDisplay) + '</div>' +
+              '<div style="font-size:11px; color:#718096; margin-top:2px;">📅 ' + escapeHtml(s.date || '-') + '</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:15px; font-weight:800; color:#9b111e;">' + formatCurrency(s.revenue || 0) + '</div>' +
+              '<div style="font-size:11px; color:#137333; font-weight:600;">Profit: ' + formatCurrency(s.profit || 0) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:8px;">' +
+            '<button type="button" class="btn btn-primary btn-sm btnOpenSaleInvoice" data-sale-id="' + escapeHtml(s.saleId) + '" style="font-size:12px; font-weight:700; padding:6px 12px;">' +
+              '📄 On-Demand Letterhead Invoice' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function filterSalesHistory(query) {
+      state.salesSearchQuery = query || '';
+      var q = (query || '').toLowerCase().trim();
+      if (!q) {
+        renderSalesHistory(state.salesHistory);
+        return;
+      }
+      var filtered = state.salesHistory.filter(function(s) {
+        var itemMatch = (s.itemName || '').toLowerCase().indexOf(q) !== -1;
+        var custMatch = (s.customerName || '').toLowerCase().indexOf(q) !== -1;
+        var phoneMatch = (s.customerMobile || '').indexOf(q) !== -1;
+        var dateMatch = (s.date || '').toLowerCase().indexOf(q) !== -1;
+        var idMatch = (s.saleId || '').toLowerCase().indexOf(q) !== -1;
+        return itemMatch || custMatch || phoneMatch || dateMatch || idMatch;
+      });
+      renderSalesHistory(filtered);
+    }
+
+    // ========== ON-DEMAND LETTERHEAD INVOICE GENERATOR & SHARE ==========
     function openInvoiceModalForSale(sale) {
       if (!sale) return;
       var company = state.companySettings || {};
@@ -3277,20 +4814,25 @@
       var compNameEl = document.getElementById('invoiceCompanyName');
       var compContactEl = document.getElementById('invoiceCompanyContact');
       var logoEl = document.getElementById('invoicePreviewLogo');
+      var logoPlaceholder = document.getElementById('invoiceLogoPlaceholder');
       var numEl = document.getElementById('invoiceDisplayNumber');
       var dateEl = document.getElementById('invoiceDisplayDate');
       var custNameEl = document.getElementById('invoiceDisplayCustomerName');
       var custEmailEl = document.getElementById('invoiceDisplayCustomerEmail');
       var custPhoneEl = document.getElementById('invoiceDisplayCustomerPhone');
+      var custAddrEl = document.getElementById('invoiceDisplayCustomerAddress');
       var tbody = document.getElementById('invoiceTableBody');
+      var subtotalEl = document.getElementById('invoiceDisplaySubtotal');
       var grandTotalEl = document.getElementById('invoiceDisplayGrandTotal');
       var emailInput = document.getElementById('invoiceRecipientEmail');
+      var waPhoneSpan = document.getElementById('btnWhatsAppCustomerPhone');
 
       var invNumber = 'INV-CC-' + (sale.saleId ? sale.saleId.replace(/^SAL_/, '').slice(-6) : new Date().getTime().toString().slice(-6));
       var invDate = sale.date || new Date().toLocaleDateString('en-IN');
       var custName = sale.customerName || 'Valued Customer';
       var custEmail = sale.customerEmail || '';
-      var custPhone = sale.customerPhone || '';
+      var custPhone = sale.customerMobile || sale.customerPhone || '';
+      var custAddress = sale.customerAddress || '';
 
       if (compNameEl) compNameEl.textContent = company.companyName || 'Crimson Charm';
       if (compContactEl) {
@@ -3301,53 +4843,78 @@
         compContactEl.innerHTML = contactStr.length > 0 ? contactStr.join('<br>') : 'Inventory &amp; Retail';
       }
 
-      if (logoEl) {
+      if (logoEl && logoPlaceholder) {
         if (company.companyLogo) {
           logoEl.src = company.companyLogo;
           logoEl.style.display = 'block';
+          logoPlaceholder.style.display = 'none';
         } else {
           logoEl.style.display = 'none';
+          logoPlaceholder.style.display = 'inline-block';
         }
       }
 
       if (numEl) numEl.textContent = '#' + invNumber;
       if (dateEl) dateEl.textContent = invDate;
       if (custNameEl) custNameEl.textContent = custName;
-      if (custEmailEl) custEmailEl.textContent = custEmail || 'No email specified';
-      if (custPhoneEl) {
-        custPhoneEl.textContent = custPhone ? 'Phone: ' + custPhone : '';
-        custPhoneEl.style.display = custPhone ? 'block' : 'none';
+      if (custPhoneEl) custPhoneEl.textContent = custPhone ? ('📞 ' + custPhone) : '📞 -';
+      if (custEmailEl) custEmailEl.textContent = custEmail ? ('✉️ ' + custEmail) : '✉️ -';
+      if (custAddrEl) custAddrEl.textContent = custAddress ? ('📍 ' + custAddress) : '📍 -';
+
+      if (waPhoneSpan) {
+        waPhoneSpan.textContent = custPhone ? custPhone : (custName || 'Customer');
       }
 
-      // Populate items table
+      var unitPrice = parseFloat(sale.sellPrice) || 0;
+      var qty = parseFloat(sale.qtySold) || 1;
+      var totalAmount = parseFloat(sale.revenue) || (unitPrice * qty);
+
       if (tbody) {
-        var unitPrice = parseFloat(sale.sellPrice) || 0;
-        var totalAmount = parseFloat(sale.revenue) || (unitPrice * (sale.qtySold || 1));
         tbody.innerHTML = '<tr>' +
-          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; font-weight:600;">' + escapeHtml(sale.itemName) + '</td>' +
-          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; text-align:center;">' + (sale.qtySold || 1) + '</td>' +
-          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; text-align:right;">' + formatCurrency(unitPrice) + '</td>' +
-          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; text-align:right; font-weight:700; color:#9b111e;">' + formatCurrency(totalAmount) + '</td>' +
+          '<td style="padding:10px 6px; border-bottom:1px solid #edf2f7; font-weight:600; color:#202124;">' + escapeHtml(sale.itemName || 'Custom Item') + '</td>' +
+          '<td style="padding:10px 6px; border-bottom:1px solid #edf2f7; text-align:center; color:#4a5568;">' + qty + '</td>' +
+          '<td style="padding:10px 6px; border-bottom:1px solid #edf2f7; text-align:right; color:#4a5568;">' + formatCurrency(unitPrice) + '</td>' +
+          '<td style="padding:10px 6px; border-bottom:1px solid #edf2f7; text-align:right; font-weight:800; color:#9b111e;">' + formatCurrency(totalAmount) + '</td>' +
           '</tr>';
       }
 
-      if (grandTotalEl) grandTotalEl.textContent = formatCurrency(sale.revenue);
+      if (subtotalEl) subtotalEl.textContent = formatCurrency(totalAmount);
+      if (grandTotalEl) grandTotalEl.textContent = formatCurrency(totalAmount);
       if (emailInput) emailInput.value = custEmail;
 
-      // Save to state for sending
+      // Bind Signatory Name and Digital Signature to letterhead footer
+      var signatoryEl = document.getElementById('invoiceSignatoryName');
+      var sigImgEl = document.getElementById('invoiceSignatureImg');
+      var forCompEl = document.getElementById('invoiceForCompanyText');
+
+      var signatoryName = company.signatoryName || 'Mrs. Nancy Khatri';
+      if (signatoryEl) signatoryEl.textContent = signatoryName;
+      if (forCompEl) forCompEl.textContent = 'For ' + (company.companyName || 'Crimson Charm');
+
+      if (sigImgEl) {
+        if (company.signatorySignature) {
+          sigImgEl.src = company.signatorySignature;
+          sigImgEl.style.display = 'block';
+        } else {
+          sigImgEl.src = '';
+          sigImgEl.style.display = 'none';
+        }
+      }
+
       state.currentInvoiceData = {
         invoiceNumber: invNumber,
         date: invDate,
         customerName: custName,
         customerEmail: custEmail,
         customerPhone: custPhone,
+        customerAddress: custAddress,
         items: [{
-          name: sale.itemName,
-          qty: sale.qtySold || 1,
-          unitPrice: parseFloat(sale.sellPrice) || 0,
-          amount: parseFloat(sale.revenue) || 0
+          name: sale.itemName || 'Custom Item',
+          qty: qty,
+          unitPrice: unitPrice,
+          amount: totalAmount
         }],
-        totalAmount: parseFloat(sale.revenue) || 0,
+        totalAmount: totalAmount,
         notes: 'Thank you for shopping with Crimson Charm!'
       };
 
@@ -3357,6 +4924,117 @@
     function closeInvoiceModal() {
       var invoiceModal = document.getElementById('modalInvoice');
       if (invoiceModal) invoiceModal.className = 'modal-backdrop';
+    }
+
+    function shareInvoiceViaWhatsApp() {
+      if (!state.currentInvoiceData) {
+        showToast('No active invoice to share', 'error');
+        return;
+      }
+
+      var inv = state.currentInvoiceData;
+      var phone = inv.customerPhone ? inv.customerPhone.trim() : '';
+
+      if (!phone) {
+        var inputPhone = prompt('Enter customer mobile number for WhatsApp (e.g. 9876543210):', '');
+        if (!inputPhone) {
+          showToast('Customer mobile number required for WhatsApp', 'warning');
+          return;
+        }
+        phone = inputPhone.trim();
+        inv.customerPhone = phone;
+        var phoneEl = document.getElementById('invoiceDisplayCustomerPhone');
+        if (phoneEl) {
+          phoneEl.textContent = '📞 ' + phone;
+          phoneEl.style.display = 'block';
+        }
+      }
+
+      var cleanPhone = cleanMobileForWhatsApp(phone);
+      var text = formatInvoiceWhatsAppText(inv);
+      var encoded = encodeURIComponent(text);
+      var waUrl = 'https://api.whatsapp.com/send?phone=' + cleanPhone + '&text=' + encoded;
+
+      showToast('Opening WhatsApp for ' + phone + '...', 'info');
+      window.open(waUrl, '_blank');
+    }
+
+    function shareInvoiceAsPdf() {
+      if (!state.currentInvoiceData) {
+        showToast('No active invoice to export', 'error');
+        return;
+      }
+
+      var inv = state.currentInvoiceData;
+      var printEl = document.getElementById('invoicePrintArea');
+      if (!printEl) {
+        window.print();
+        return;
+      }
+
+      var fileName = 'Crimson_Charm_Invoice_' + (inv.invoiceNumber || 'INV') + '.pdf';
+
+      if (typeof window.html2pdf !== 'function') {
+        showToast('Generating print preview...', 'info');
+        window.print();
+        return;
+      }
+
+      showToast('Preparing official PDF letterhead...', 'info');
+
+      var opt = {
+        margin: [8, 8, 8, 8],
+        filename: fileName,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      try {
+        window.html2pdf().set(opt).from(printEl).toPdf().get('pdf').then(function(pdfObj) {
+          var blob = pdfObj.output('blob');
+          var file = new File([blob], fileName, { type: 'application/pdf' });
+
+          // Try native mobile Web Share API with PDF file
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+              files: [file],
+              title: 'Invoice #' + inv.invoiceNumber + ' - Crimson Charm',
+              text: 'Here is your official invoice from Crimson Charm.'
+            }).then(function() {
+              showToast('Invoice PDF shared successfully!', 'success');
+            }).catch(function(shareErr) {
+              if (shareErr.name !== 'AbortError') {
+                pdfObj.save(fileName);
+                showToast('PDF downloaded to your device', 'success');
+              }
+            });
+          } else {
+            // Desktop or browser without file sharing support: trigger direct download
+            pdfObj.save(fileName);
+            showToast('PDF downloaded! You can now send it to ' + (inv.customerPhone || 'customer'), 'success');
+          }
+        }).catch(function(err) {
+          console.error('PDF generation error:', err);
+          window.print();
+        });
+      } catch (e) {
+        console.error('html2pdf invocation error:', e);
+        window.print();
+      }
+    }
+
+    function shareInvoiceViaSms() {
+      if (!state.currentInvoiceData) return;
+      var inv = state.currentInvoiceData;
+      var phone = inv.customerPhone ? inv.customerPhone.trim() : '';
+      if (!phone) {
+        phone = prompt('Enter customer mobile number for SMS:', '') || '';
+      }
+      if (!phone) return;
+      var clean = cleanMobileForWhatsApp(phone);
+      var text = 'Invoice #' + inv.invoiceNumber + ' from Crimson Charm: Total ' + formatCurrency(inv.totalAmount) + '. Thank you! With Love from ASK Hospitality.';
+      window.open('sms:' + clean + '?body=' + encodeURIComponent(text), '_blank');
     }
 
     function sendCurrentInvoiceEmail() {
@@ -3761,6 +5439,20 @@
         btnSaveCompanyProfile.addEventListener('click', saveCompanyProfile);
       }
 
+      // Digital Signature Listeners
+      var btnUploadSignature = document.getElementById('btnUploadSignature');
+      var signatureFileInput = document.getElementById('signatureFileInput');
+      var btnClearSignature = document.getElementById('btnClearSignature');
+      if (btnUploadSignature && signatureFileInput) {
+        btnUploadSignature.addEventListener('click', function() {
+          signatureFileInput.click();
+        });
+        signatureFileInput.addEventListener('change', handleSignatureFileSelect);
+      }
+      if (btnClearSignature) {
+        btnClearSignature.addEventListener('click', clearSignatureSelection);
+      }
+
       // Post-Sale Invoice Actions
       var btnOpenLastSaleInvoice = document.getElementById('btnOpenLastSaleInvoice');
       if (btnOpenLastSaleInvoice) {
@@ -3799,6 +5491,180 @@
         });
       }
 
+      // Invoice Mobile Sharing Listeners (WhatsApp, PDF, SMS)
+      var btnShareInvoiceWhatsApp = document.getElementById('btnShareInvoiceWhatsApp');
+      if (btnShareInvoiceWhatsApp) {
+        btnShareInvoiceWhatsApp.addEventListener('click', shareInvoiceViaWhatsApp);
+      }
+
+      var btnShareInvoicePdf = document.getElementById('btnShareInvoicePdf');
+      if (btnShareInvoicePdf) {
+        btnShareInvoicePdf.addEventListener('click', shareInvoiceAsPdf);
+      }
+
+      var btnShareInvoiceSms = document.getElementById('btnShareInvoiceSms');
+      if (btnShareInvoiceSms) {
+        btnShareInvoiceSms.addEventListener('click', shareInvoiceViaSms);
+      }
+
+      // Sell Screen Mode Toggle (Record Sale vs Sales History)
+      var btnSellModeNew = document.getElementById('btnSellModeNew');
+      var btnSellModeHistory = document.getElementById('btnSellModeHistory');
+      if (btnSellModeNew) {
+        btnSellModeNew.addEventListener('click', function() { switchSellMode('new'); });
+      }
+      if (btnSellModeHistory) {
+        btnSellModeHistory.addEventListener('click', function() { switchSellMode('history'); });
+      }
+
+      // Customer Auto-Select in Sell Form
+      var sellCustomerNameInput = document.getElementById('sellCustomerName');
+      if (sellCustomerNameInput) {
+        sellCustomerNameInput.addEventListener('input', onCustomerSelectInSell);
+        sellCustomerNameInput.addEventListener('change', onCustomerSelectInSell);
+      }
+
+      // Sales History Search & Refresh
+      var salesHistorySearchInput = document.getElementById('salesHistorySearchInput');
+      if (salesHistorySearchInput) {
+        salesHistorySearchInput.addEventListener('input', function(e) {
+          filterSalesHistory(e.target.value);
+        });
+      }
+      var btnRefreshSalesHistory = document.getElementById('btnRefreshSalesHistory');
+      if (btnRefreshSalesHistory) {
+        btnRefreshSalesHistory.addEventListener('click', function() {
+          loadSalesHistory(false);
+        });
+      }
+
+      // Delegated Click on Sales History List
+      var salesHistoryListContainer = document.getElementById('salesHistoryListContainer');
+      if (salesHistoryListContainer) {
+        salesHistoryListContainer.addEventListener('click', function(e) {
+          var btn = e.target.closest('.btnOpenSaleInvoice');
+          if (btn) {
+            var sId = btn.getAttribute('data-sale-id');
+            for (var i = 0; i < state.salesHistory.length; i++) {
+              if (state.salesHistory[i].saleId === sId) {
+                openInvoiceModalForSale(state.salesHistory[i]);
+                break;
+              }
+            }
+          }
+        });
+      }
+
+      // Customer Directory Search & Modal Handlers
+      var customersSearchInput = document.getElementById('customersSearchInput');
+      if (customersSearchInput) {
+        customersSearchInput.addEventListener('input', function(e) {
+          filterCustomers(e.target.value);
+        });
+      }
+      var btnOpenAddCustomerModal = document.getElementById('btnOpenAddCustomerModal');
+      if (btnOpenAddCustomerModal) {
+        btnOpenAddCustomerModal.addEventListener('click', function() {
+          openAddCustomerModal(null);
+        });
+      }
+      var btnCloseAddCustomer = document.getElementById('btnCloseAddCustomer');
+      if (btnCloseAddCustomer) btnCloseAddCustomer.addEventListener('click', closeAddCustomerModal);
+      var btnCancelCustomer = document.getElementById('btnCancelCustomer');
+      if (btnCancelCustomer) btnCancelCustomer.addEventListener('click', closeAddCustomerModal);
+      var btnSaveCustomerSubmit = document.getElementById('btnSaveCustomerSubmit');
+      if (btnSaveCustomerSubmit) btnSaveCustomerSubmit.addEventListener('click', submitCustomerForm);
+
+      // Customer Export & Import Listeners
+      var btnExportCustomers = document.getElementById('btnExportCustomers');
+      if (btnExportCustomers) {
+        btnExportCustomers.addEventListener('click', exportCustomersToCsv);
+      }
+
+      var btnImportCustomers = document.getElementById('btnImportCustomers');
+      if (btnImportCustomers) {
+        btnImportCustomers.addEventListener('click', openImportCustomersModal);
+      }
+
+      var btnDownloadCustomerTemplate = document.getElementById('btnDownloadCustomerTemplate');
+      if (btnDownloadCustomerTemplate) {
+        btnDownloadCustomerTemplate.addEventListener('click', downloadCustomerCsvTemplate);
+      }
+
+      var btnCloseImportCustomers = document.getElementById('btnCloseImportCustomers');
+      if (btnCloseImportCustomers) {
+        btnCloseImportCustomers.addEventListener('click', closeImportCustomersModal);
+      }
+
+      var btnCancelImportCustomers = document.getElementById('btnCancelImportCustomers');
+      if (btnCancelImportCustomers) {
+        btnCancelImportCustomers.addEventListener('click', closeImportCustomersModal);
+      }
+
+      var btnSubmitImportCustomers = document.getElementById('btnSubmitImportCustomers');
+      if (btnSubmitImportCustomers) {
+        btnSubmitImportCustomers.addEventListener('click', submitCustomerImport);
+      }
+
+      var customerCsvFileInput = document.getElementById('customerCsvFileInput');
+      if (customerCsvFileInput) {
+        customerCsvFileInput.addEventListener('change', handleCustomerCsvFileSelect);
+      }
+
+      var customerCsvPasteArea = document.getElementById('customerCsvPasteArea');
+      if (customerCsvPasteArea) {
+        customerCsvPasteArea.addEventListener('input', function(e) {
+          parseCustomerCsvRawText(e.target.value);
+        });
+      }
+
+      // Delegated Clicks on Customer Directory List
+      var customersListContainer = document.getElementById('customersListContainer');
+      if (customersListContainer) {
+        customersListContainer.addEventListener('click', function(e) {
+          var invBtn = e.target.closest('.btnCustomerNewInvoice');
+          if (invBtn) {
+            var cId = invBtn.getAttribute('data-id');
+            var cust = null;
+            for (var ci = 0; ci < state.customers.length; ci++) {
+              if (state.customers[ci].id === cId) { cust = state.customers[ci]; break; }
+            }
+            if (cust) {
+              openInvoiceModalForSale({
+                saleId: 'CUST_' + new Date().getTime().toString().slice(-6),
+                itemName: 'Crimson Charm Curated Selection',
+                qtySold: 1,
+                sellPrice: cust.totalPurchases || 0,
+                revenue: cust.totalPurchases || 0,
+                date: new Date().toLocaleDateString('en-IN'),
+                customerName: cust.name,
+                customerMobile: cust.mobile,
+                customerEmail: cust.email,
+                customerAddress: cust.address
+              });
+            }
+            return;
+          }
+          var editBtn = e.target.closest('.btnEditCustomer');
+          if (editBtn) {
+            var eId = editBtn.getAttribute('data-id');
+            for (var cj = 0; cj < state.customers.length; cj++) {
+              if (state.customers[cj].id === eId) {
+                openAddCustomerModal(state.customers[cj]);
+                break;
+              }
+            }
+            return;
+          }
+          var delBtn = e.target.closest('.btnDeleteCustomer');
+          if (delBtn) {
+            var dId = delBtn.getAttribute('data-id');
+            var dName = delBtn.getAttribute('data-name');
+            deleteCustomerAction(dId, dName);
+          }
+        });
+      }
+
       // Confirm Modal Action Handlers
       var btnConfirmYes = document.getElementById('btnConfirmYes');
       var btnConfirmNo = document.getElementById('btnConfirmNo');
@@ -3814,12 +5680,74 @@
       if (btnConfirmNo) btnConfirmNo.addEventListener('click', hideConfirm);
       if (btnConfirmCancelX) btnConfirmCancelX.addEventListener('click', hideConfirm);
 
+      // Authentication Listeners
+      var btnTriggerGoogleAuth = document.getElementById('btnTriggerGoogleAuth');
+      if (btnTriggerGoogleAuth) btnTriggerGoogleAuth.addEventListener('click', triggerGoogleSignIn);
+
+      var btnToggleLoginPassword = document.getElementById('btnToggleLoginPassword');
+      if (btnToggleLoginPassword) btnToggleLoginPassword.addEventListener('click', toggleLoginPasswordVisibility);
+
+      var btnSubmitLogin = document.getElementById('btnSubmitLogin');
+      if (btnSubmitLogin) btnSubmitLogin.addEventListener('click', submitLogin);
+
+      var loginPasswordInput = document.getElementById('loginPassword');
+      if (loginPasswordInput) {
+        loginPasswordInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') submitLogin();
+        });
+      }
+
+      var btnLogout = document.getElementById('btnLogout');
+      if (btnLogout) btnLogout.addEventListener('click', logoutUser);
+
+      // Whitelist Management Listeners
+      var btnOpenAddUserModal = document.getElementById('btnOpenAddUserModal');
+      if (btnOpenAddUserModal) btnOpenAddUserModal.addEventListener('click', openAddUserModal);
+
+      var btnCloseAddUserX = document.getElementById('btnCloseAddUserX');
+      if (btnCloseAddUserX) btnCloseAddUserX.addEventListener('click', closeAddUserModal);
+
+      var btnCancelAddUser = document.getElementById('btnCancelAddUser');
+      if (btnCancelAddUser) btnCancelAddUser.addEventListener('click', closeAddUserModal);
+
+      var btnSubmitAddUser = document.getElementById('btnSubmitAddUser');
+      if (btnSubmitAddUser) btnSubmitAddUser.addEventListener('click', submitNewWhitelistedUser);
+
+      var btnSaveGoogleClientId = document.getElementById('btnSaveGoogleClientId');
+      if (btnSaveGoogleClientId) btnSaveGoogleClientId.addEventListener('click', saveGoogleClientId);
+
+      var whitelistedUsersContainer = document.getElementById('whitelistedUsersContainer');
+      if (whitelistedUsersContainer) {
+        whitelistedUsersContainer.addEventListener('click', function(e) {
+          var toggleBtn = e.target.closest('.btnToggleUserStatus');
+          if (toggleBtn) {
+            var uId = toggleBtn.getAttribute('data-id');
+            var uStatus = toggleBtn.getAttribute('data-status');
+            if (uId) toggleUserStatus(uId, uStatus);
+            return;
+          }
+          var delBtn = e.target.closest('.btnDeleteUser');
+          if (delBtn) {
+            var dId = delBtn.getAttribute('data-id');
+            var dEmail = delBtn.getAttribute('data-email');
+            if (dId) deleteWhitelistedUserAction(dId, dEmail);
+          }
+        });
+      }
+
       // Initial Data Fetch & Settings Loading
       loadAppsScriptUrlSettings();
-      loadCompanySettings();
-      loadInventory();
-      loadCategories();
-      loadStockists();
+      loadGoogleClientId();
+
+      // Verify Session & Authenticate
+      checkAuthSession(function() {
+        loadCompanySettings();
+        loadInventory();
+        loadCategories();
+        loadStockists();
+        loadCustomers(true);
+        loadSalesHistory(true);
+      });
     });
   </script>
 </body>
