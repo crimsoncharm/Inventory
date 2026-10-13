@@ -1108,15 +1108,15 @@
           <img id="authCompanyLogo" src="" alt="Logo" style="display:none; max-height:48px; max-width:140px; margin:0 auto 8px auto; object-fit:contain;">
           <div style="font-size:11px; font-weight:800; color:#9b111e; letter-spacing:1px; text-transform:uppercase;">Crimson Charm</div>
           <h2 style="font-size:20px; font-weight:700; color:#202124; margin:4px 0 2px 0;">Sign In</h2>
-          <div style="font-size:12px; color:#5f6368;">Whitelisted Access Only</div>
+          <div style="font-size:12px; color:#5f6368;">Authorized Staff Portal</div>
         </div>
 
         <!-- Security Badge -->
-        <div style="background:#e6f4ea; border:1px solid #ceead6; border-radius:8px; padding:10px 12px; margin-bottom:16px; font-size:12px; color:#137333; display:flex; align-items:flex-start; gap:8px;">
-          <span style="font-size:16px;">🛡️</span>
+        <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:8px; padding:10px 12px; margin-bottom:16px; font-size:12px; color:#202124; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">🔒</span>
           <div>
-            <strong>Google Sheets Whitelist Protected</strong>
-            <div style="font-size:11px; opacity:0.9; margin-top:2px;">Only authorized Google accounts listed in your spreadsheet can log in.</div>
+            <strong>Enterprise Secure Access</strong>
+            <div style="font-size:11px; color:#5f6368; margin-top:2px;">Sign in with your authorized company account to continue.</div>
           </div>
         </div>
 
@@ -1130,20 +1130,20 @@
           </button>
 
           <div id="googleAuthSuccessBadge" style="display:none; background:#e8f0fe; border:1px solid #d2e3fc; color:#1a73e8; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; text-align:center; margin-top:8px;">
-            ✓ Google Verified: <span id="googleAuthEmailText"></span>
+            ✓ Verified: <span id="googleAuthEmailText"></span>
           </div>
         </div>
 
         <div style="display:flex; align-items:center; text-align:center; color:#5f6368; font-size:11px; margin:12px 0;">
           <div style="flex:1; border-bottom:1px solid #dadce0;"></div>
-          <span style="padding:0 8px; text-transform:uppercase; font-weight:600;">Or Whitelist Login</span>
+          <span style="padding:0 8px; text-transform:uppercase; font-weight:600;">Or Email &amp; Password</span>
           <div style="flex:1; border-bottom:1px solid #dadce0;"></div>
         </div>
 
-        <!-- Whitelisted Email & Password -->
+        <!-- Authorized Email & Password -->
         <div class="form-group">
-          <label class="form-label" for="loginEmail">Whitelisted Email<span class="required">*</span></label>
-          <input type="email" id="loginEmail" class="form-control" placeholder="user@gmail.com" autocomplete="email">
+          <label class="form-label" for="loginEmail">Email Address<span class="required">*</span></label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="user@crimsoncharm.com" autocomplete="email">
         </div>
 
         <div class="form-group">
@@ -1158,11 +1158,11 @@
         </div>
 
         <button type="button" class="btn btn-primary btn-block" id="btnSubmitLogin" style="margin-top:4px;">
-          Verify &amp; Enter App
+          Sign In
         </button>
 
         <div style="margin-top:14px; text-align:center; font-size:11px; color:#5f6368; line-height:1.4;">
-          Authorized access only. Managed via the <strong>Users</strong> sheet in your Google Sheet database.
+          Authorized access only. Contact your administrator for access credentials.
         </div>
       </div>
     </div>
@@ -1402,13 +1402,13 @@
                 </div>
               </div>
 
-              <!-- Customer Details Section for Invoice & Sheet -->
+              <!-- Customer Details Section for Invoicing -->
               <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                   <div style="font-size:12px; font-weight:700; color:#5f6368; text-transform:uppercase;">
                     Customer Details (For Invoice &amp; Mobile Share)
                   </div>
-                  <span style="font-size:10px; background:#e8f0fe; color:#1a73e8; font-weight:600; padding:2px 6px; border-radius:4px;">Auto-Saves to Sheet</span>
+                  <span style="font-size:10px; background:#e8f0fe; color:#1a73e8; font-weight:600; padding:2px 6px; border-radius:4px;">Auto-Recorded</span>
                 </div>
                 <!-- Autocomplete Datalist -->
                 <datalist id="sellCustomerDatalist"></datalist>
@@ -1650,18 +1650,18 @@
           </button>
         </div>
 
-        <!-- User Whitelist & Access Control Section -->
+        <!-- User Access & Security Section -->
         <div class="card">
           <div class="section-header">
-            <h2 class="section-title">User Whitelist &amp; Access</h2>
-            <button type="button" class="btn btn-primary btn-sm" id="btnOpenAddUserModal">+ Whitelist User</button>
+            <h2 class="section-title">User Access &amp; Security</h2>
+            <button type="button" class="btn btn-primary btn-sm" id="btnOpenAddUserModal">+ Add User</button>
           </div>
           <div style="font-size:12px; color:#5f6368; margin-bottom:12px; line-height:1.4;">
-            Only whitelisted accounts can sign in. Synced directly with the <strong>Users</strong> tab in Google Sheets.
+            Manage authorized staff accounts and role-based access permissions for Crimson Charm.
           </div>
           <div id="whitelistedUsersContainer">
             <div class="empty-state" style="padding:16px 0;">
-              <div style="font-size:13px; color:#5f6368;">Loading whitelisted accounts...</div>
+              <div style="font-size:13px; color:#5f6368;">Loading team accounts...</div>
             </div>
           </div>
         </div>
@@ -2164,19 +2164,19 @@
   </div>
 
   <!-- ==============================================
-       ADD WHITELISTED USER MODAL
+       ADD AUTHORIZED USER MODAL
        ============================================== -->
   <div class="modal-backdrop" id="modalAddUser">
     <div class="modal-content">
       <div class="modal-drag-bar"></div>
       <div class="modal-header-row">
-        <h3 class="modal-title">Whitelist New User</h3>
+        <h3 class="modal-title">Add Authorized User</h3>
         <button type="button" class="modal-close-x" id="btnCloseAddUserX">&times;</button>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="newUserEmail">Google Email Address<span class="required">*</span></label>
-        <input type="email" id="newUserEmail" class="form-control" placeholder="user@gmail.com">
+        <label class="form-label" for="newUserEmail">Email Address<span class="required">*</span></label>
+        <input type="email" id="newUserEmail" class="form-control" placeholder="user@crimsoncharm.com">
       </div>
 
       <div class="form-group">
@@ -2198,7 +2198,7 @@
       </div>
 
       <div style="display:flex; gap:10px; margin-top:16px;">
-        <button type="button" class="btn btn-primary btn-block" id="btnSubmitAddUser">Whitelist User</button>
+        <button type="button" class="btn btn-primary btn-block" id="btnSubmitAddUser">Save User</button>
         <button type="button" class="btn btn-outline btn-block" id="btnCancelAddUser">Cancel</button>
       </div>
     </div>
@@ -2685,7 +2685,7 @@
     function triggerGoogleSignIn() {
       var clientId = state.googleClientId || localStorage.getItem('crimson_google_client_id') || '';
       if (!clientId) {
-        showToast('To use Google Sign-in button, set your Google OAuth Client ID in More > Settings, or enter your whitelisted email & password below.', 'info');
+        showToast('To use Google Sign-In, configure Google OAuth Client ID in Settings, or sign in with your email and password below.', 'info');
         var emailInput = document.getElementById('loginEmail');
         if (emailInput) emailInput.focus();
         return;
@@ -2712,7 +2712,7 @@
 
       if (!email) {
         if (errEl) {
-          errEl.textContent = 'Please enter your whitelisted email address.';
+          errEl.textContent = 'Please enter your authorized email address.';
           errEl.style.display = 'block';
         }
         if (emailInput) emailInput.focus();
@@ -2798,7 +2798,7 @@
 
       if (!users || users.length === 0) {
         container.innerHTML = '<div class="empty-state" style="padding:16px 0;">' +
-          '<div style="font-size:13px; color:#5f6368;">No whitelisted users found. Tap "+ Whitelist User" to add one.</div>' +
+          '<div style="font-size:13px; color:#5f6368;">No authorized users found. Tap "+ Add User" to add one.</div>' +
           '</div>';
         return;
       }
@@ -2865,7 +2865,7 @@
       var role = roleSelect ? roleSelect.value : 'User';
 
       if (!email || email.indexOf('@') === -1) {
-        showToast('Please enter a valid Google email address', 'error');
+        showToast('Please enter a valid email address', 'error');
         if (emailInput) emailInput.focus();
         return;
       }
@@ -2884,7 +2884,7 @@
 
       getRunner(function(res) {
         if (res && res.success) {
-          showToast('User ' + email + ' added to whitelist!', 'success');
+          showToast('User ' + email + ' added successfully!', 'success');
           closeAddUserModal();
           loadWhitelistedUsers();
         } else {
@@ -2892,7 +2892,7 @@
         }
       }, function(err) {
         showToast('Error adding user: ' + err, 'error');
-      }, 'Whitelisting user...').addWhitelistedUser(payload);
+      }, 'Saving user...').addWhitelistedUser(payload);
     }
 
     function toggleUserStatus(userId, currentStatus) {
@@ -2906,9 +2906,9 @@
     }
 
     function deleteWhitelistedUserAction(userId, email) {
-      showConfirm('Are you sure you want to remove ' + email + ' from the whitelist?', function() {
+      showConfirm('Are you sure you want to revoke access for ' + email + '?', function() {
         getRunner(function(res) {
-          showToast('User removed from whitelist', 'success');
+          showToast('User access revoked', 'success');
           loadWhitelistedUsers();
         }, function(err) {
           showToast('Error removing user: ' + err, 'error');
