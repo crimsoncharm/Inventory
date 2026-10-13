@@ -1,0 +1,3826 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Inventory Manager</title>
+  <style>
+    /* ========== CSS RESET & MOBILE FOUNDATION ========== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #f8f9fa;
+      color: #202124;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-viewport {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background-color: #f8f9fa;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ========== FIXED HEADER ========== */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      height: 56px;
+      background-color: #ffffff;
+      border-bottom: 1px solid #dadce0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #202124;
+      letter-spacing: -0.2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ========== FIXED BOTTOM NAVIGATION ========== */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      height: 64px;
+      background-color: #ffffff;
+      border-top: 1px solid #dadce0;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 100;
+      box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .nav-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: none;
+      border: none;
+      outline: none;
+      color: #5f6368;
+      cursor: pointer;
+      padding: 6px 0 4px 0;
+      transition: color 0.15s ease;
+      min-height: 44px;
+    }
+
+    .nav-tab .nav-icon {
+      font-size: 20px;
+      margin-bottom: 2px;
+      line-height: 1;
+    }
+
+    .nav-tab .nav-label {
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .nav-tab.active {
+      color: #1a73e8;
+    }
+
+    .nav-tab.active .nav-label {
+      font-weight: 700;
+    }
+
+    /* ========== CONTENT AREA ========== */
+    .content {
+      margin-top: 56px;
+      margin-bottom: 64px;
+      padding: 16px;
+      min-height: calc(100vh - 120px);
+      width: 100%;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+      animation: fadeIn 0.18s ease-in-out;
+    }
+
+    /* ========== CARDS & SURFACES ========== */
+    .card {
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #202124;
+    }
+
+    /* ========== FORM ELEMENTS ========== */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #5f6368;
+      margin-bottom: 6px;
+    }
+
+    .form-label .required {
+      color: #c5221f;
+      margin-left: 2px;
+    }
+
+    .form-control {
+      width: 100%;
+      height: 44px;
+      padding: 0 12px;
+      font-size: 15px;
+      color: #202124;
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    select.form-control {
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235f6368'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 18px;
+      padding-right: 36px;
+    }
+
+    textarea.form-control {
+      height: 76px;
+      padding: 10px 12px;
+      resize: vertical;
+    }
+
+    .form-control:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.18);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .form-row > .form-group {
+      flex: 1;
+    }
+
+    /* ========== BUTTONS ========== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
+      padding: 0 18px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      outline: none;
+      text-decoration: none;
+      min-height: 44px;
+      transition: opacity 0.15s, background-color 0.15s;
+    }
+
+    .btn:active {
+      opacity: 0.82;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-block {
+      width: 100%;
+      display: flex;
+    }
+
+    .btn-primary {
+      background-color: #1a73e8;
+      color: #ffffff;
+    }
+
+    .btn-success {
+      background-color: #137333;
+      color: #ffffff;
+    }
+
+    .btn-danger {
+      background-color: #c5221f;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background-color: #f1f3f4;
+      color: #202124;
+      border-color: #dadce0;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      color: #1a73e8;
+      border-color: #1a73e8;
+    }
+
+    .btn-sm {
+      height: 36px;
+      padding: 0 12px;
+      font-size: 13px;
+      min-height: 36px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      outline: none;
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+      color: #5f6368;
+      font-size: 18px;
+    }
+
+    .icon-btn:active {
+      background-color: #f1f3f4;
+      color: #202124;
+    }
+
+    /* ========== CAMERA & PREVIEW ========== */
+    .camera-box {
+      border: 2px dashed #dadce0;
+      border-radius: 12px;
+      background-color: #ffffff;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      min-height: 120px;
+    }
+
+    .camera-box:active {
+      border-color: #1a73e8;
+      background-color: #e8f0fe;
+    }
+
+    .camera-icon {
+      font-size: 32px;
+      margin-bottom: 6px;
+    }
+
+    .camera-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a73e8;
+    }
+
+    .camera-subtext {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 2px;
+    }
+
+    .preview-container {
+      display: none;
+      margin-bottom: 14px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #dadce0;
+      background-color: #ffffff;
+      padding: 10px;
+    }
+
+    .preview-img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      border-radius: 8px;
+      display: block;
+      background-color: #202124;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    /* ========== BADGES & PILLS ========== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 12px;
+      background-color: #e8f0fe;
+      color: #1a73e8;
+    }
+
+    .badge-success {
+      background-color: #e6f4ea;
+      color: #137333;
+    }
+
+    .badge-danger {
+      background-color: #fce8e6;
+      color: #c5221f;
+    }
+
+    .badge-warning {
+      background-color: #fef7e0;
+      color: #e37400;
+    }
+
+    .badge-secondary {
+      background-color: #f1f3f4;
+      color: #5f6368;
+    }
+
+    /* ========== INVENTORY SCREEN STYLES ========== */
+    .search-sticky-container {
+      position: sticky;
+      top: 56px;
+      z-index: 90;
+      background-color: #f8f9fa;
+      padding-bottom: 10px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 44px;
+      padding: 0 38px 0 36px;
+      font-size: 14px;
+      border-radius: 22px;
+      border: 1px solid #dadce0;
+      background-color: #ffffff;
+      outline: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .search-input:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.18);
+    }
+
+    .search-icon-left {
+      position: absolute;
+      left: 12px;
+      color: #5f6368;
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 16px;
+      color: #5f6368;
+      cursor: pointer;
+      display: none;
+      padding: 4px;
+    }
+
+    .category-filter-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-top: 8px;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .category-filter-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 18px;
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #5f6368;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .filter-chip.active {
+      background-color: #1a73e8;
+      border-color: #1a73e8;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 14px;
+      background-color: #e8f0fe;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a73e8;
+      margin-bottom: 12px;
+    }
+
+    .item-card {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background-color 0.1s;
+    }
+
+    .item-card:active {
+      background-color: #f1f3f4;
+    }
+
+    .item-thumbnail {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      background-color: #f1f3f4;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: #5f6368;
+      overflow: hidden;
+      border: 1px solid #eceff1;
+    }
+
+    .item-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .item-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #202124;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .item-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .item-stock {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    .item-pricing {
+      font-size: 13px;
+      color: #202124;
+    }
+
+    .item-price-strike {
+      text-decoration: line-through;
+      color: #80868b;
+      font-size: 12px;
+      margin-right: 4px;
+    }
+
+    .item-price-current {
+      font-weight: 700;
+      color: #137333;
+    }
+
+    /* ========== TOTAL COST & SUMMARY BOXES ========== */
+    .cost-display-card {
+      background-color: #f1f3f4;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 16px;
+      border: 1px solid #dadce0;
+    }
+
+    .cost-display-label {
+      font-size: 12px;
+      color: #5f6368;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .cost-display-amount {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a73e8;
+      margin-top: 2px;
+    }
+
+    /* ========== QUICK QTY BUTTONS ========== */
+    .quick-qty-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .quick-qty-btn {
+      flex: 1;
+      height: 38px;
+      background-color: #f1f3f4;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #202124;
+      cursor: pointer;
+    }
+
+    .quick-qty-btn:active {
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      border-color: #1a73e8;
+    }
+
+    /* ========== P&L STYLES ========== */
+    .segmented-control {
+      display: flex;
+      background-color: #f1f3f4;
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 16px;
+    }
+
+    .segment-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      padding: 8px 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: #5f6368;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 38px;
+    }
+
+    .segment-btn.active {
+      background-color: #ffffff;
+      color: #1a73e8;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .stat-card.blue { border-left: 4px solid #1a73e8; }
+    .stat-card.gray { border-left: 4px solid #5f6368; }
+    .stat-card.green { border-left: 4px solid #137333; }
+    .stat-card.red { border-left: 4px solid #c5221f; }
+    .stat-card.amber { border-left: 4px solid #e37400; }
+
+    .stat-label {
+      font-size: 12px;
+      color: #5f6368;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      margin-top: 4px;
+      color: #202124;
+    }
+
+    .pnl-row-card {
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pnl-row-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #202124;
+      margin-bottom: 2px;
+    }
+
+    .pnl-row-sub {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    .pnl-row-right {
+      text-align: right;
+    }
+
+    .pnl-row-profit {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .pnl-row-margin {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    /* ========== MORE SCREEN STYLES ========== */
+    .stockist-card {
+      background-color: #ffffff;
+      border: 1px solid #dadce0;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .stockist-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      background-color: #f1f3f4;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      overflow: hidden;
+      border: 1px solid #dadce0;
+    }
+
+    .stockist-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .stockist-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .stockist-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #202124;
+      margin-bottom: 3px;
+    }
+
+    .stockist-phone {
+      font-size: 13px;
+      color: #1a73e8;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 2px;
+      font-weight: 500;
+    }
+
+    .stockist-address {
+      font-size: 12px;
+      color: #5f6368;
+      line-height: 1.3;
+    }
+
+    .chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .chip-item {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      background-color: #f1f3f4;
+      border-radius: 16px;
+      font-size: 13px;
+      color: #202124;
+      border: 1px solid #dadce0;
+    }
+
+    .chip-delete-btn {
+      margin-left: 6px;
+      cursor: pointer;
+      color: #5f6368;
+      font-weight: bold;
+      border: none;
+      background: none;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .chip-delete-btn:active {
+      color: #c5221f;
+    }
+
+    /* ========== MODALS ========== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      z-index: 200;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 16px 16px 0 0;
+      padding: 16px 18px 24px 18px;
+      animation: slideUp 0.22s ease-out;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-drag-bar {
+      width: 36px;
+      height: 4px;
+      background-color: #dadce0;
+      border-radius: 2px;
+      margin: 0 auto 12px auto;
+    }
+
+    .modal-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #202124;
+    }
+
+    .modal-close-x {
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: #5f6368;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    /* ========== TOAST NOTIFICATION ========== */
+    .toast {
+      position: fixed;
+      bottom: 76px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #202124;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      z-index: 300;
+      display: none;
+      max-width: 90%;
+      text-align: center;
+      pointer-events: none;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .toast.success { background-color: #137333; }
+    .toast.error { background-color: #c5221f; }
+    .toast.info { background-color: #202124; }
+    .toast.warning { background-color: #e37400; }
+
+    /* ========== FULLSCREEN LOADING OVERLAY ========== */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(2px);
+      z-index: 400;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid #e8f0fe;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    .loading-label {
+      font-size: 15px;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    /* ========== EMPTY STATE ========== */
+    .empty-state {
+      text-align: center;
+      padding: 40px 16px;
+      color: #5f6368;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #202124;
+      margin-bottom: 4px;
+    }
+
+    .empty-state-subtitle {
+      font-size: 13px;
+      color: #5f6368;
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes slideUp {
+      0% { transform: translateY(100%); }
+      100% { transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    /* ========== PRINT STYLES (INVOICE) ========== */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #invoicePrintArea, #invoicePrintArea * {
+        visibility: visible;
+      }
+      #invoicePrintArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 24px;
+        border: none !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport">
+    <!-- Fixed Header -->
+    <header class="header">
+      <div class="header-left">
+        <img id="headerCompanyLogo" src="" alt="Logo" style="display:none; height:32px; max-width:70px; object-fit:contain; border-radius:4px;">
+        <div>
+          <div id="headerBrandName" style="font-size:11px; font-weight:700; color:#9b111e; letter-spacing:0.5px; text-transform:uppercase; line-height:1;">Crimson Charm</div>
+          <h1 class="header-title" id="headerTitle" style="font-size:16px; margin:0; line-height:1.2;">Stock</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnRefresh" title="Refresh" aria-label="Refresh">🔄</button>
+      </div>
+    </header>
+
+    <!-- Scrollable Content -->
+    <main class="content">
+
+      <!-- ==============================================
+           SCREEN 1: ➕ ADD ITEM
+           ============================================== -->
+      <section id="screen-add" class="screen">
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">Item Photo & OCR</h2>
+          </div>
+
+          <!-- Hidden file input for camera/album -->
+          <input type="file" id="itemCameraInput" accept="image/*" capture="environment" style="display:none;">
+
+          <!-- Camera trigger area -->
+          <div class="camera-box" id="itemCameraBox">
+            <div class="camera-icon">📷</div>
+            <div class="camera-text">Tap to snap or upload item label</div>
+            <div class="camera-subtext">Gemini AI can auto-read name & barcode</div>
+          </div>
+
+          <!-- Image Preview Area -->
+          <div class="preview-container" id="itemPreviewContainer">
+            <img id="itemPreviewImg" class="preview-img" alt="Item preview">
+            <div class="preview-actions">
+              <button type="button" class="btn btn-outline btn-block btn-sm" id="btnScanItemLabel">
+                🔍 Scan Item Label
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnClearItemPhoto">
+                ✕ Clear Photo
+              </button>
+            </div>
+          </div>
+
+          <!-- Add Item Form Fields -->
+          <div class="form-group">
+            <label class="form-label" for="inputItemName">
+              Item Name<span class="required">*</span>
+            </label>
+            <input type="text" id="inputItemName" class="form-control" placeholder="e.g., Wireless Bluetooth Speaker">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputBarcode">Barcode / SKU</label>
+            <input type="text" id="inputBarcode" class="form-control" placeholder="e.g., 8901234567890">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="selectCategory">Category</label>
+            <select id="selectCategory" class="form-control">
+              <option value="">-- Select Category --</option>
+              <option value="__ADD_NEW__">+ Add New</option>
+            </select>
+          </div>
+
+          <!-- Inline New Category Input Box -->
+          <div id="inlineCategoryBox" class="form-group" style="display:none; background:#f1f3f4; padding:10px; border-radius:8px;">
+            <label class="form-label" for="inputInlineCategoryName">New Category Name</label>
+            <div class="form-row">
+              <input type="text" id="inputInlineCategoryName" class="form-control" placeholder="Category name">
+              <button type="button" class="btn btn-primary btn-sm" id="btnSaveInlineCategory">Add</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCancelInlineCategory">Cancel</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="selectStockist">Stockist / Dealer</label>
+            <select id="selectStockist" class="form-control">
+              <option value="">-- Select Stockist --</option>
+              <option value="__ADD_NEW__">+ Add New</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="inputQuantityBought">
+                Quantity Bought<span class="required">*</span>
+              </label>
+              <input type="number" id="inputQuantityBought" class="form-control" min="1" step="1" value="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputBuyPrice">
+                Buy Price per unit ₹<span class="required">*</span>
+              </label>
+              <input type="number" id="inputBuyPrice" class="form-control" min="0" step="0.01" placeholder="0.00">
+            </div>
+          </div>
+
+          <!-- Prominent Cost Display Card -->
+          <div class="cost-display-card">
+            <div class="cost-display-label">Total Cost (Read-Only)</div>
+            <div class="cost-display-amount" id="displayTotalCost">₹0.00</div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="button" class="btn btn-primary btn-block" id="btnAddItemSubmit">
+            Add to Inventory
+          </button>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 2: 📦 INVENTORY (STOCK)
+           ============================================== -->
+      <section id="screen-inventory" class="screen active">
+        <!-- Sticky Search & Filter -->
+        <div class="search-sticky-container">
+          <div class="search-wrapper">
+            <span class="search-icon-left">🔍</span>
+            <input type="text" id="inventorySearchInput" class="search-input" placeholder="Search by name, barcode, or category...">
+            <button type="button" id="inventorySearchClear" class="search-clear-btn" aria-label="Clear search">✕</button>
+          </div>
+
+          <!-- Category Filter Scroll -->
+          <div class="category-filter-scroll" id="inventoryCategoryFilterBar">
+            <button type="button" class="filter-chip active" data-category="all">All</button>
+          </div>
+        </div>
+
+        <!-- Inventory Stats Bar -->
+        <div class="stats-bar" id="inventoryStatsBar">
+          <span id="statsItemCount">0 items</span>
+          <span id="statsTotalValue">Total value: ₹0.00</span>
+        </div>
+
+        <!-- Inventory Items List -->
+        <div id="inventoryListContainer">
+          <!-- Rendered via JS -->
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="inventoryEmptyState" class="empty-state" style="display:none;">
+          <div class="empty-state-icon">📦</div>
+          <div class="empty-state-title">No items yet</div>
+          <div class="empty-state-subtitle">Tap + to add your first item.</div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 3: 💰 SELL
+           ============================================== -->
+      <section id="screen-sell" class="screen">
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">Item Selector</h2>
+          </div>
+
+          <!-- Item Selector Dropdown -->
+          <div class="form-group">
+            <label class="form-label" for="sellItemSelect">Pick an Item from Inventory</label>
+            <select id="sellItemSelect" class="form-control">
+              <option value="">-- Select an item --</option>
+            </select>
+          </div>
+
+          <!-- Selected Item Info Card -->
+          <div id="sellItemInfoCard" style="display:none; margin-bottom:14px; background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px;">
+            <div style="display:flex; gap:12px; align-items:center;">
+              <div id="sellItemThumb" class="item-thumbnail">📦</div>
+              <div style="flex:1; min-width:0;">
+                <div id="sellItemName" style="font-weight:700; font-size:15px; color:#202124;">-</div>
+                <div style="display:flex; gap:6px; align-items:center; margin:3px 0;">
+                  <span id="sellItemCategoryBadge" class="badge">Category</span>
+                  <span id="sellItemStockBadge" class="badge badge-success">Stock: 0 units</span>
+                </div>
+                <div id="sellItemBuyPriceText" style="font-size:12px; color:#5f6368;">Buy Price: ₹0.00 per unit</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pricing Section -->
+          <div id="sellPricingSection" style="display:none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="sellMarkupPct">Markup %</label>
+                <input type="number" id="sellMarkupPct" class="form-control" min="0" step="1" value="40">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="sellDiscountPct">Discount %</label>
+                <input type="number" id="sellDiscountPct" class="form-control" min="0" max="100" step="1" value="0">
+              </div>
+            </div>
+
+            <!-- Calculated Sell Price Display -->
+            <div style="background:#e6f4ea; border:1px solid #ceead6; border-radius:10px; padding:12px; text-align:center; margin-bottom:14px;">
+              <div style="font-size:12px; font-weight:600; color:#137333; text-transform:uppercase;">Calculated Sell Price per unit</div>
+              <div id="sellCalculatedPrice" style="font-size:24px; font-weight:700; color:#137333; margin:2px 0;">₹0.00</div>
+              <div id="sellFormulaText" style="font-size:11px; color:#5f6368;">₹0 × 1.00 × 1.00 = ₹0.00</div>
+            </div>
+
+            <!-- Quantity Section -->
+            <div class="form-group">
+              <label class="form-label" for="sellQuantityInput">
+                Qty to Sell (Max: <span id="sellMaxStockText">0</span>)
+              </label>
+              <input type="number" id="sellQuantityInput" class="form-control" min="1" step="1" value="1">
+              <div class="quick-qty-group">
+                <button type="button" class="quick-qty-btn" data-qty="1">1</button>
+                <button type="button" class="quick-qty-btn" data-qty="2">2</button>
+                <button type="button" class="quick-qty-btn" data-qty="5">5</button>
+                <button type="button" class="quick-qty-btn" data-qty="10">10</button>
+                <button type="button" class="quick-qty-btn" id="btnSellQtyMax">Max</button>
+              </div>
+            </div>
+
+            <!-- Sale Summary Card -->
+            <div class="card" style="background:#ffffff; border:1px solid #1a73e8; margin-bottom:16px;">
+              <div style="font-size:13px; font-weight:700; color:#1a73e8; margin-bottom:8px;">Sale Summary</div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;">
+                <span style="color:#5f6368;">Revenue:</span>
+                <span id="sellSummaryRevenue" style="font-weight:600; color:#202124;">₹0.00</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;">
+                <span style="color:#5f6368;">Cost:</span>
+                <span id="sellSummaryCost" style="font-weight:600; color:#5f6368;">₹0.00</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px; padding-top:4px; border-top:1px dashed #dadce0;">
+                <span style="font-weight:700; color:#202124;">Profit:</span>
+                <span id="sellSummaryProfit" style="font-weight:700; color:#137333;">₹0.00</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:12px;">
+                <span style="color:#5f6368;">Margin:</span>
+                <span id="sellSummaryMargin" style="font-weight:600; color:#e37400;">0.0%</span>
+              </div>
+            </div>
+
+            <!-- Optional Customer Details for Invoice -->
+            <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
+              <div style="font-size:12px; font-weight:700; color:#5f6368; text-transform:uppercase; margin-bottom:6px;">
+                Customer Details (For Invoice - Optional)
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <input type="text" id="sellCustomerName" class="form-control" placeholder="Customer Name (e.g. John Doe)" style="height:38px; font-size:13px;">
+              </div>
+              <div class="form-row">
+                <input type="email" id="sellCustomerEmail" class="form-control" placeholder="Customer Email" style="height:38px; font-size:13px;">
+                <input type="tel" id="sellCustomerPhone" class="form-control" placeholder="Phone Number" style="height:38px; font-size:13px;">
+              </div>
+            </div>
+
+            <!-- Record Sale Submit Button -->
+            <button type="button" class="btn btn-success btn-block" id="btnRecordSaleSubmit">
+              Record Sale - ₹0.00 Revenue
+            </button>
+
+            <!-- Post-Sale Action Card (Appears after successful sale) -->
+            <div id="postSaleActionCard" style="display:none; margin-top:14px; background:#e6f4ea; border:1px solid #ceead6; border-radius:10px; padding:14px; text-align:center;">
+              <div style="font-size:14px; font-weight:700; color:#137333; margin-bottom:4px;">✓ Sale Recorded Successfully!</div>
+              <div id="postSaleDetailsText" style="font-size:12px; color:#5f6368; margin-bottom:10px;">-</div>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-primary btn-block btn-sm" id="btnOpenLastSaleInvoice">
+                  📄 View &amp; Email Invoice
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnDismissPostSale">
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 4: 📊 P&L (PROFIT & LOSS)
+           ============================================== -->
+      <section id="screen-pnl" class="screen">
+        <!-- Period Toggle Segmented Control -->
+        <div class="segmented-control" id="pnlPeriodToggle">
+          <button type="button" class="segment-btn active" data-period="all">All Time</button>
+          <button type="button" class="segment-btn" data-period="month">This Month</button>
+          <button type="button" class="segment-btn" data-period="today">Today</button>
+        </div>
+
+        <!-- 2x2 Summary Cards Grid -->
+        <div class="grid-2x2">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Revenue</div>
+            <div class="stat-value" id="pnlTotalRevenue">₹0.00</div>
+          </div>
+          <div class="stat-card gray">
+            <div class="stat-label">Total Cost</div>
+            <div class="stat-value" id="pnlTotalCost">₹0.00</div>
+          </div>
+          <div class="stat-card green" id="pnlProfitCard">
+            <div class="stat-label">Total Profit</div>
+            <div class="stat-value" id="pnlTotalProfit">₹0.00</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Margin</div>
+            <div class="stat-value" id="pnlMarginPct">0.0%</div>
+          </div>
+        </div>
+
+        <!-- Per-Item Breakdown Header -->
+        <div class="section-header">
+          <h2 class="section-title">Per-Item Breakdown</h2>
+        </div>
+
+        <!-- Breakdown List -->
+        <div id="pnlItemListContainer">
+          <!-- Rendered via JS -->
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="pnlEmptyState" class="empty-state" style="display:none;">
+          <div class="empty-state-icon">📊</div>
+          <div class="empty-state-title">No sales recorded yet</div>
+          <div class="empty-state-subtitle">Start selling to see your P&L.</div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 5: ⚙️ MORE
+           ============================================== -->
+      <section id="screen-more" class="screen">
+        <!-- Stockists / Dealers Section -->
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">Stockists</h2>
+            <button type="button" class="btn btn-outline btn-sm" id="btnOpenAddStockistModal">+ Add</button>
+          </div>
+          <div id="stockistsListContainer">
+            <!-- Rendered via JS -->
+          </div>
+          <div id="stockistsEmptyText" class="empty-state-subtitle" style="text-align:center; padding:10px 0; display:none;">
+            No stockists added yet.
+          </div>
+        </div>
+
+        <!-- Categories Section -->
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">Categories</h2>
+            <button type="button" class="btn btn-outline btn-sm" id="btnToggleAddCategoryRow">+ Add</button>
+          </div>
+
+          <!-- Inline Add Category Input -->
+          <div id="moreInlineCategoryRow" style="display:none; margin-bottom:12px;">
+            <div class="form-row">
+              <input type="text" id="inputMoreCategoryName" class="form-control" placeholder="New category name">
+              <button type="button" class="btn btn-primary btn-sm" id="btnSaveMoreCategory">Save</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCancelMoreCategory">✕</button>
+            </div>
+          </div>
+
+          <!-- Category Chips Wrap -->
+          <div class="chips-wrap" id="categoriesChipsContainer">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Company Profile & Logo Section -->
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">Company Profile &amp; Logo</h2>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputCompanyName">Company Name</label>
+            <input type="text" id="inputCompanyName" class="form-control" value="Crimson Charm">
+          </div>
+
+          <!-- Logo Uploader & Preview -->
+          <div class="form-group">
+            <label class="form-label">Company Logo</label>
+            <input type="file" id="logoFileInput" accept="image/*" style="display:none;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; padding:10px; background:#f8f9fa; border-radius:8px; border:1px solid #dadce0;">
+              <div id="logoPreviewBox" style="width:60px; height:60px; border-radius:6px; background:#ffffff; border:1px solid #dadce0; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                <img id="logoPreviewImg" src="" alt="Logo" style="display:none; width:100%; height:100%; object-fit:contain;">
+                <span id="logoPlaceholderIcon" style="font-size:24px;">🏢</span>
+              </div>
+              <div style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" id="btnUploadLogo">Upload / Snap Logo</button>
+                <div style="font-size:11px; color:#5f6368; margin-top:4px;">Appears on header and invoices</div>
+              </div>
+            </div>
+            <input type="url" id="inputCompanyLogoUrl" class="form-control" placeholder="Or paste Logo image URL" style="font-size:12px; height:36px;">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="inputCompanyPhone">Business Phone</label>
+              <input type="tel" id="inputCompanyPhone" class="form-control" placeholder="+91 ...">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputCompanyEmail">Business Email</label>
+              <input type="email" id="inputCompanyEmail" class="form-control" placeholder="info@crimsoncharm.com">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputCompanyAddress">Business Address</label>
+            <textarea id="inputCompanyAddress" class="form-control" placeholder="Store address, City, Pincode"></textarea>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block btn-sm" id="btnSaveCompanyProfile">
+            Save Company Profile
+          </button>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">AI &amp; System Settings</h2>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputGeminiApiKey">Gemini API Key</label>
+            <div style="position:relative; display:flex; align-items:center;">
+              <input type="password" id="inputGeminiApiKey" class="form-control" placeholder="Enter API key" style="padding-right:40px;">
+              <button type="button" id="btnToggleApiKeyVisibility" class="icon-btn" style="position:absolute; right:2px;" title="Show/Hide">👁️</button>
+            </div>
+            <div style="font-size:12px; color:#5f6368; margin-top:4px;">
+              Get your API key from <a href="https://aistudio.google.com" target="_blank" style="color:#1a73e8; text-decoration:none;">aistudio.google.com</a>
+            </div>
+            <div id="apiKeyMaskedStatus" style="font-size:12px; color:#137333; margin-top:4px; font-weight:500;"></div>
+          </div>
+          <button type="button" class="btn btn-primary btn-block btn-sm" id="btnSaveApiKey">
+            Save Key
+          </button>
+
+          <hr style="border:none; border-top:1px solid #dadce0; margin:16px 0;">
+
+          <div class="form-group">
+            <label class="form-label" for="inputAppsScriptUrl">Google Apps Script Web App URL (Vercel Mode)</label>
+            <input type="url" id="inputAppsScriptUrl" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+            <div style="font-size:12px; color:#5f6368; margin-top:4px; line-height:1.4;">
+              For Vercel deployment: Paste your deployed Apps Script Web App URL here, or configure <code>APPS_SCRIPT_URL</code> in Vercel environment variables.
+            </div>
+            <div id="appsScriptUrlStatus" style="font-size:12px; color:#137333; margin-top:4px; font-weight:500;"></div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSaveAppsScriptUrl" style="flex:1;">
+              Save Backend URL
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnTestBackendConnection" style="flex:1;">
+              Test Connection
+            </button>
+          </div>
+        </div>
+
+        <!-- App Information & Credits -->
+        <div style="text-align:center; padding:18px 0 24px 0; color:#5f6368; font-size:12px; line-height:1.6;">
+          <div style="font-weight:700; color:#9b111e; font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">Crimson Charm Inventory</div>
+          <div>Personal Stock &amp; Sales Management</div>
+          <div style="margin-top:8px; display:inline-block; padding:5px 14px; background:#fff0f2; border:1px solid #ffd1d8; border-radius:20px; color:#9b111e; font-weight:600; font-size:12px;">
+            ❤️ With Love from ASK Hospitality
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Fixed Bottom Navigation (5 tabs) -->
+    <nav class="bottom-nav">
+      <button type="button" class="nav-tab" data-screen="add">
+        <span class="nav-icon">➕</span>
+        <span class="nav-label">Add</span>
+      </button>
+      <button type="button" class="nav-tab active" data-screen="inventory">
+        <span class="nav-icon">📦</span>
+        <span class="nav-label">Stock</span>
+      </button>
+      <button type="button" class="nav-tab" data-screen="sell">
+        <span class="nav-icon">💰</span>
+        <span class="nav-label">Sell</span>
+      </button>
+      <button type="button" class="nav-tab" data-screen="pnl">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">P&L</span>
+      </button>
+      <button type="button" class="nav-tab" data-screen="more">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">More</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==============================================
+       MODAL 1: ITEM DETAIL MODAL (SLIDES UP)
+       ============================================== -->
+  <div class="modal-backdrop" id="modalItemDetail">
+    <div class="modal-content">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title" id="modalDetailTitle">Item Details</h3>
+        <button type="button" class="modal-close-x" id="btnCloseItemDetail">✕</button>
+      </div>
+
+      <!-- Item Image Banner -->
+      <div id="modalDetailImageWrap" style="display:none; margin-bottom:14px; text-align:center;">
+        <img id="modalDetailImage" src="" alt="Item" style="max-height:180px; width:100%; object-fit:contain; border-radius:8px; background:#f1f3f4;">
+      </div>
+
+      <!-- Item Basic Info -->
+      <div style="margin-bottom:14px;">
+        <div id="modalDetailItemName" style="font-size:17px; font-weight:700; color:#202124;">-</div>
+        <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
+          <span id="modalDetailCategory" class="badge">Category</span>
+          <span id="modalDetailBarcode" class="badge badge-secondary" style="display:none;">Barcode</span>
+        </div>
+      </div>
+
+      <!-- Item Stats Grid -->
+      <div style="background:#f8f9fa; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px;">
+          <span style="color:#5f6368;">Stock:</span>
+          <span id="modalDetailStock" style="font-weight:700; color:#202124;">0 units</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px;">
+          <span style="color:#5f6368;">Buy Price:</span>
+          <span id="modalDetailBuyPrice" style="font-weight:600; color:#202124;">₹0.00</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px;">
+          <span style="color:#5f6368;">Stockist:</span>
+          <span id="modalDetailStockist" style="color:#202124;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:#5f6368;">Date Added:</span>
+          <span id="modalDetailDateAdded" style="color:#80868b;">-</span>
+        </div>
+      </div>
+
+      <!-- Editable Pricing Inputs -->
+      <div style="background:#ffffff; border:1px solid #dadce0; border-radius:10px; padding:12px; margin-bottom:14px;">
+        <div style="font-size:13px; font-weight:700; color:#202124; margin-bottom:8px;">Pricing & Margin</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="modalDetailMarkup">Markup %</label>
+            <input type="number" id="modalDetailMarkup" class="form-control" min="0" step="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="modalDetailDiscount">Discount %</label>
+            <input type="number" id="modalDetailDiscount" class="form-control" min="0" max="100" step="1">
+          </div>
+        </div>
+        <div style="background:#e6f4ea; border-radius:8px; padding:10px; text-align:center; margin-top:8px;">
+          <div style="font-size:11px; font-weight:600; color:#137333; text-transform:uppercase;">Sell Price</div>
+          <div id="modalDetailSellPrice" style="font-size:20px; font-weight:700; color:#137333; margin:2px 0;">₹0.00</div>
+          <div id="modalDetailFormula" style="font-size:11px; color:#5f6368;">-</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button type="button" class="btn btn-primary btn-block" id="btnModalUpdatePricing">
+          Update Pricing
+        </button>
+        <button type="button" class="btn btn-success btn-block" id="btnModalSellItem">
+          Sell This Item
+        </button>
+        <div style="text-align:center; margin-top:4px;">
+          <a href="javascript:void(0)" id="linkModalDeleteItem" style="color:#c5221f; font-size:13px; font-weight:600; text-decoration:none;">
+            Delete Item
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MODAL 2: ADD STOCKIST MODAL
+       ============================================== -->
+  <div class="modal-backdrop" id="modalAddStockist">
+    <div class="modal-content">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title">Add Stockist / Dealer</h3>
+        <button type="button" class="modal-close-x" id="btnCloseAddStockist">✕</button>
+      </div>
+
+      <!-- Hidden file input for business card photo -->
+      <input type="file" id="stockistCameraInput" accept="image/*" capture="environment" style="display:none;">
+
+      <!-- Camera trigger box -->
+      <div class="camera-box" id="stockistCameraBox" style="padding:16px;">
+        <div class="camera-icon">📇</div>
+        <div class="camera-text">Photograph Business Card</div>
+        <div class="camera-subtext">Gemini AI can extract name, phone & address</div>
+      </div>
+
+      <!-- Business Card Preview Container -->
+      <div class="preview-container" id="stockistPreviewContainer">
+        <img id="stockistPreviewImg" class="preview-img" alt="Card preview">
+        <div class="preview-actions">
+          <button type="button" class="btn btn-outline btn-block btn-sm" id="btnScanBusinessCard">
+            Scan Business Card
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnClearStockistPhoto">
+            ✕ Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Stockist Form Fields -->
+      <div class="form-group">
+        <label class="form-label" for="inputStockistName">
+          Stockist / Dealer Name<span class="required">*</span>
+        </label>
+        <input type="text" id="inputStockistName" class="form-control" placeholder="e.g., Apex Electronics">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputStockistPhone">Phone Number</label>
+        <input type="tel" id="inputStockistPhone" class="form-control" placeholder="e.g., +91 9876543210">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputStockistAddress">Address</label>
+        <textarea id="inputStockistAddress" class="form-control" placeholder="e.g., Shop 42, Lamington Road, Mumbai"></textarea>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-block" id="btnSaveStockistSubmit" style="margin-top:10px;">
+        Save Stockist
+      </button>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MODAL 3: CONFIRMATION MODAL
+       ============================================== -->
+  <div class="modal-backdrop" id="modalConfirm">
+    <div class="modal-content" style="max-height:50vh;">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title" id="confirmModalTitle">Confirm Action</h3>
+        <button type="button" class="modal-close-x" id="btnConfirmCancelX">✕</button>
+      </div>
+      <p id="confirmModalMessage" style="font-size:14px; color:#5f6368; margin-bottom:20px; line-height:1.4;">
+        Are you sure?
+      </p>
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn btn-secondary btn-block" id="btnConfirmNo">Cancel</button>
+        <button type="button" class="btn btn-danger btn-block" id="btnConfirmYes">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       MODAL 4: INVOICE GENERATOR & EMAIL MODAL
+       ============================================== -->
+  <div class="modal-backdrop" id="modalInvoice">
+    <div class="modal-content" style="max-height:92vh;">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header-row">
+        <h3 class="modal-title" id="invoiceModalTitle">Invoice - Crimson Charm</h3>
+        <button type="button" class="modal-close-x" id="btnCloseInvoice">✕</button>
+      </div>
+
+      <!-- Printable / Previewable Invoice Card -->
+      <div id="invoicePrintArea" style="background:#ffffff; border:1px solid #dadce0; border-radius:10px; padding:16px; margin-bottom:14px; font-size:13px; color:#202124;">
+        <!-- Header with logo and company name -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid #9b111e;">
+          <div>
+            <img id="invoicePreviewLogo" src="" alt="Crimson Charm" style="display:none; max-height:48px; max-width:120px; margin-bottom:4px; object-fit:contain;">
+            <div id="invoiceCompanyName" style="font-size:18px; font-weight:800; color:#9b111e; letter-spacing:-0.3px;">Crimson Charm</div>
+            <div id="invoiceCompanyContact" style="font-size:11px; color:#5f6368; line-height:1.4;">Inventory &amp; Retail</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:14px; font-weight:700; color:#9b111e;">INVOICE</div>
+            <div id="invoiceDisplayNumber" style="font-weight:600; font-size:12px; color:#202124;">#INV-CC-000000</div>
+            <div id="invoiceDisplayDate" style="font-size:11px; color:#5f6368;">-</div>
+          </div>
+        </div>
+
+        <!-- Bill To -->
+        <div style="margin-bottom:12px; background:#f8f9fa; border-radius:8px; padding:10px;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:#5f6368; margin-bottom:2px;">Bill To:</div>
+          <div id="invoiceDisplayCustomerName" style="font-weight:700; font-size:14px; color:#202124;">Valued Customer</div>
+          <div id="invoiceDisplayCustomerEmail" style="font-size:12px; color:#5f6368;">-</div>
+          <div id="invoiceDisplayCustomerPhone" style="font-size:12px; color:#5f6368;"></div>
+        </div>
+
+        <!-- Items Table -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12px;">
+          <thead>
+            <tr style="border-bottom:1px solid #dadce0; color:#5f6368; text-transform:uppercase; font-size:11px;">
+              <th style="text-align:left; padding:6px 4px;">Item</th>
+              <th style="text-align:center; padding:6px 4px;">Qty</th>
+              <th style="text-align:right; padding:6px 4px;">Price</th>
+              <th style="text-align:right; padding:6px 4px;">Total</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceTableBody">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+
+        <!-- Total Box -->
+        <div style="background:#fff5f5; border:1px solid #feb2b2; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:13px; color:#721c24;">Grand Total</div>
+          <div id="invoiceDisplayGrandTotal" style="font-size:18px; font-weight:800; color:#9b111e;">₹0.00</div>
+        </div>
+
+        <!-- Footer / Credits -->
+        <div style="text-align:center; font-size:11px; color:#5f6368; padding-top:8px; border-top:1px dashed #dadce0;">
+          <div>Thank you for shopping with Crimson Charm!</div>
+          <div style="margin-top:4px; font-weight:600; color:#9b111e;">With Love from ASK Hospitality</div>
+        </div>
+      </div>
+
+      <!-- Customer Email input for direct sending -->
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label" for="invoiceRecipientEmail">Send Invoice to Email<span class="required">*</span></label>
+        <div style="display:flex; gap:8px;">
+          <input type="email" id="invoiceRecipientEmail" class="form-control" placeholder="customer@example.com">
+          <button type="button" class="btn btn-primary" id="btnSendInvoiceEmailSubmit" style="flex-shrink:0;">
+            📧 Send
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn btn-secondary btn-block" id="btnPrintInvoice">🖨️ Print / Save</button>
+        <button type="button" class="btn btn-outline btn-block" id="btnCloseInvoiceBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       FULLSCREEN LOADING OVERLAY
+       ============================================== -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-label" id="loadingLabel">Loading...</div>
+  </div>
+
+  <!-- ==============================================
+       TOAST NOTIFICATION
+       ============================================== -->
+  <div class="toast" id="toastBox">Notification</div>
+
+  <!-- ==============================================
+       VANILLA JAVASCRIPT ARCHITECTURE
+       ============================================== -->
+  <script>
+    // ========== STATE ==========
+    var state = {
+      inventory: [],
+      categories: [],
+      stockists: [],
+      companySettings: {
+        companyName: 'Crimson Charm',
+        companyLogo: '',
+        companyPhone: '',
+        companyEmail: '',
+        companyAddress: '',
+        appCredits: 'With Love from ASK Hospitality'
+      },
+      currentScreen: 'inventory',
+      selectedItemId: null,
+      isLoading: false,
+      activePeriod: 'all',
+      itemPhoto: { base64: '', mime: '', dataUrl: '' },
+      stockistPhoto: { base64: '', mime: '', dataUrl: '' },
+      logoPhoto: { base64: '', mime: '', dataUrl: '' },
+      currentInvoiceData: null,
+      lastSale: null,
+      searchQuery: '',
+      selectedCategoryFilter: 'all',
+      confirmCallback: null,
+      toastTimer: null
+    };
+
+    // ========== UTILITIES ==========
+    function formatCurrency(amount) {
+      if (amount === null || amount === undefined || isNaN(amount)) return '₹0.00';
+      var num = parseFloat(amount);
+      var formatted = num.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      return '₹' + formatted;
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toastBox');
+      if (!toast) return;
+      if (state.toastTimer) {
+        clearTimeout(state.toastTimer);
+        state.toastTimer = null;
+      }
+      toast.className = 'toast';
+      if (type) {
+        toast.className = 'toast ' + type;
+      }
+      toast.textContent = message;
+      toast.style.display = 'block';
+
+      state.toastTimer = setTimeout(function() {
+        toast.style.display = 'none';
+      }, 3200);
+    }
+
+    function showLoading(show, message) {
+      var overlay = document.getElementById('loadingOverlay');
+      var label = document.getElementById('loadingLabel');
+      if (!overlay) return;
+      if (show) {
+        if (label && message) label.textContent = message;
+        else if (label) label.textContent = 'Please wait...';
+        overlay.className = 'loading-overlay active';
+      } else {
+        overlay.className = 'loading-overlay';
+      }
+    }
+
+    function showConfirm(message, onConfirm) {
+      var modal = document.getElementById('modalConfirm');
+      var msgEl = document.getElementById('confirmModalMessage');
+      if (msgEl) msgEl.textContent = message;
+      state.confirmCallback = onConfirm;
+      if (modal) modal.className = 'modal-backdrop active';
+    }
+
+    function hideConfirm() {
+      var modal = document.getElementById('modalConfirm');
+      if (modal) modal.className = 'modal-backdrop';
+      state.confirmCallback = null;
+    }
+
+    // Process image file to resized JPEG base64
+    function processImageFile(file, callback) {
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          try {
+            var canvas = document.createElement('canvas');
+            var maxDim = 850;
+            var width = img.width;
+            var height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+            var parts = compressedDataUrl.split(',');
+            var mime = parts[0].match(/:(.*?);/)[1];
+            var base64 = parts[1];
+            callback({
+              dataUrl: compressedDataUrl,
+              mime: mime,
+              base64: base64
+            });
+          } catch (err) {
+            var rawDataUrl = e.target.result;
+            var rawParts = rawDataUrl.split(',');
+            var rawMime = rawParts[0].match(/:(.*?);/)[1];
+            var rawBase64 = rawParts[1];
+            callback({
+              dataUrl: rawDataUrl,
+              mime: rawMime,
+              base64: rawBase64
+            });
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Standard Google Apps Script Runner constructor
+    function getRunner(onSuccess, onError, loadingMsg) {
+      if (loadingMsg) showLoading(true, loadingMsg);
+      var handleSuccess = function(response) {
+        if (loadingMsg) showLoading(false);
+        if (onSuccess) onSuccess(response);
+      };
+      var handleFailure = function(err) {
+        if (loadingMsg) showLoading(false);
+        var errMsg = (err && err.message) ? err.message : String(err);
+        if (onError) onError(errMsg);
+        else showToast('Error: ' + errMsg, 'error');
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        return google.script.run
+          .withSuccessHandler(handleSuccess)
+          .withFailureHandler(handleFailure);
+      }
+
+      // Dual-mode Runner: Dispatches requests through /api/proxy when hosted on Vercel or standalone
+      var proxyRunner = {};
+      var methods = [
+        'getInventory', 'getItemById', 'searchInventory', 'addInventoryItem',
+        'updateInventoryItem', 'deleteInventoryItem', 'recordSale', 'getPnLSummary',
+        'getStockists', 'addStockist', 'deleteStockist', 'getCategories',
+        'addCategory', 'deleteCategory', 'ocrWithGemini', 'saveGeminiApiKey',
+        'getGeminiApiKey', 'getCompanySettings', 'saveCompanySettings', 'sendInvoiceEmail',
+        'initializeSheets', 'runTests'
+      ];
+
+      function executeProxyCall(methodName, args) {
+        var payload = {
+          action: methodName,
+          args: args
+        };
+        var headers = {
+          'Content-Type': 'application/json'
+        };
+        var savedScriptUrl = '';
+        try {
+          savedScriptUrl = localStorage.getItem('crimson_apps_script_url') || '';
+        } catch (storageErr) {}
+
+        if (savedScriptUrl) {
+          headers['x-apps-script-url'] = savedScriptUrl;
+        }
+
+        fetch('/api/proxy', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload)
+        })
+        .then(function(res) {
+          return res.text().then(function(text) {
+            var data;
+            try {
+              data = JSON.parse(text);
+            } catch (jsonErr) {
+              throw new Error('Invalid JSON response from server: ' + text.slice(0, 150));
+            }
+            if (!res.ok) {
+              throw new Error(data && data.error ? data.error : ('HTTP ' + res.status));
+            }
+            return data;
+          });
+        })
+        .then(function(data) {
+          if (data && typeof data === 'object' && data.success === false && data.error) {
+            handleFailure(data.error);
+          } else {
+            handleSuccess(data);
+          }
+        })
+        .catch(function(err) {
+          var msg = (err && err.message) ? err.message : String(err);
+          if (msg.indexOf('404') !== -1 || msg.indexOf('Failed to fetch') !== -1) {
+            msg = 'Unable to reach backend proxy. Please verify your Vercel deployment and APPS_SCRIPT_URL settings.';
+          }
+          handleFailure(msg);
+        });
+      }
+
+      for (var i = 0; i < methods.length; i++) {
+        (function(m) {
+          proxyRunner[m] = function() {
+            var args = Array.prototype.slice.call(arguments);
+            executeProxyCall(m, args);
+          };
+        })(methods[i]);
+      }
+      return proxyRunner;
+    }
+
+    // ========== NAVIGATION ==========
+    function switchScreen(screenName) {
+      state.currentScreen = screenName;
+
+      // Update screen sections visibility
+      var screens = document.querySelectorAll('.screen');
+      for (var i = 0; i < screens.length; i++) {
+        screens[i].className = 'screen';
+      }
+      var targetScreen = document.getElementById('screen-' + screenName);
+      if (targetScreen) {
+        targetScreen.className = 'screen active';
+      }
+
+      // Update bottom nav active tabs
+      var navTabs = document.querySelectorAll('.nav-tab');
+      for (var j = 0; j < navTabs.length; j++) {
+        var tab = navTabs[j];
+        if (tab.getAttribute('data-screen') === screenName) {
+          tab.className = 'nav-tab active';
+        } else {
+          tab.className = 'nav-tab';
+        }
+      }
+
+      // Update Header Title
+      var titleMap = {
+        'add': 'Add Item',
+        'inventory': 'Stock',
+        'sell': 'Sell',
+        'pnl': 'P&L',
+        'more': 'More'
+      };
+      var headerTitle = document.getElementById('headerTitle');
+      if (headerTitle) {
+        headerTitle.textContent = titleMap[screenName] || 'Inventory';
+      }
+
+      // Scroll to top
+      window.scrollTo(0, 0);
+
+      // Screen-specific activation logic
+      if (screenName === 'inventory') {
+        if (!state.inventory || state.inventory.length === 0) {
+          loadInventory();
+        } else {
+          filterInventory(state.searchQuery);
+        }
+      } else if (screenName === 'sell') {
+        populateSellItemSelector();
+      } else if (screenName === 'pnl') {
+        loadPnL(state.activePeriod);
+      } else if (screenName === 'more') {
+        renderStockists(state.stockists);
+        renderCategories(state.categories);
+        loadCompanySettings();
+        loadGeminiKey();
+      }
+    }
+
+    // ========== DATA LOADING ==========
+    function loadInventory(showSpinner) {
+      var msg = showSpinner !== false ? 'Loading stock...' : null;
+      getRunner(function(items) {
+        state.inventory = items || [];
+        filterInventory(state.searchQuery);
+        populateSellItemSelector();
+      }, function(err) {
+        showToast('Failed to load inventory: ' + err, 'error');
+      }, msg).getInventory();
+    }
+
+    function loadCategories() {
+      getRunner(function(cats) {
+        state.categories = cats || [];
+        populateCategoryDropdowns();
+        renderCategories(state.categories);
+        renderCategoryFilterBar();
+      }, function(err) {
+        console.error('Failed to load categories:', err);
+      }).getCategories();
+    }
+
+    function loadStockists() {
+      getRunner(function(stockists) {
+        state.stockists = stockists || [];
+        populateStockistDropdowns();
+        renderStockists(state.stockists);
+      }, function(err) {
+        console.error('Failed to load stockists:', err);
+      }).getStockists();
+    }
+
+    function loadPnL(period) {
+      state.activePeriod = period || 'all';
+      getRunner(function(data) {
+        renderPnL(data);
+      }, function(err) {
+        showToast('Failed to load P&L: ' + err, 'error');
+      }, 'Calculating P&L...').getPnLSummary(state.activePeriod);
+    }
+
+    function loadGeminiKey() {
+      getRunner(function(maskedKey) {
+        var statusEl = document.getElementById('apiKeyMaskedStatus');
+        if (statusEl) {
+          if (maskedKey && maskedKey.length > 0) {
+            statusEl.textContent = 'Current key configured: ' + maskedKey;
+          } else {
+            statusEl.textContent = 'No API key configured yet.';
+            statusEl.style.color = '#5f6368';
+          }
+        }
+      }, function(err) {
+        console.warn('Could not load API key status:', err);
+      }).getGeminiApiKey();
+    }
+
+    // ========== ADD ITEM SCREEN ==========
+    function handleItemCameraCapture(event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+      showLoading(true, 'Processing photo...');
+      processImageFile(file, function(result) {
+        showLoading(false);
+        state.itemPhoto = result;
+        var previewImg = document.getElementById('itemPreviewImg');
+        var previewContainer = document.getElementById('itemPreviewContainer');
+        var cameraBox = document.getElementById('itemCameraBox');
+        if (previewImg) previewImg.src = result.dataUrl;
+        if (previewContainer) previewContainer.style.display = 'block';
+        if (cameraBox) cameraBox.style.display = 'none';
+      });
+    }
+
+    function clearItemPhoto() {
+      state.itemPhoto = { base64: '', mime: '', dataUrl: '' };
+      var fileInput = document.getElementById('itemCameraInput');
+      if (fileInput) fileInput.value = '';
+      var previewImg = document.getElementById('itemPreviewImg');
+      var previewContainer = document.getElementById('itemPreviewContainer');
+      var cameraBox = document.getElementById('itemCameraBox');
+      if (previewImg) previewImg.src = '';
+      if (previewContainer) previewContainer.style.display = 'none';
+      if (cameraBox) cameraBox.style.display = 'flex';
+    }
+
+    function scanItemLabel() {
+      if (!state.itemPhoto.base64) {
+        showToast('Please take or upload a photo first', 'warning');
+        return;
+      }
+      getRunner(function(res) {
+        if (!res) {
+          showToast('Could not extract details from label', 'warning');
+          return;
+        }
+        if (res.name) {
+          var nameInput = document.getElementById('inputItemName');
+          if (nameInput) nameInput.value = res.name;
+        }
+        if (res.barcode) {
+          var barcodeInput = document.getElementById('inputBarcode');
+          if (barcodeInput) barcodeInput.value = res.barcode;
+        }
+        showToast('Label scanned successfully!', 'success');
+      }, function(err) {
+        showToast('OCR scan failed: ' + err, 'error');
+      }, 'Scanning label with Gemini AI...').ocrWithGemini(state.itemPhoto.base64, state.itemPhoto.mime, 'item');
+    }
+
+    function calculateAddItemTotalCost() {
+      var qtyInput = document.getElementById('inputQuantityBought');
+      var priceInput = document.getElementById('inputBuyPrice');
+      var display = document.getElementById('displayTotalCost');
+
+      var qty = qtyInput ? parseInt(qtyInput.value, 10) : 0;
+      var price = priceInput ? parseFloat(priceInput.value) : 0;
+
+      if (isNaN(qty) || qty < 0) qty = 0;
+      if (isNaN(price) || price < 0) price = 0;
+
+      var total = qty * price;
+      if (display) display.textContent = formatCurrency(total);
+    }
+
+    function submitNewItem() {
+      var nameInput = document.getElementById('inputItemName');
+      var barcodeInput = document.getElementById('inputBarcode');
+      var categorySelect = document.getElementById('selectCategory');
+      var stockistSelect = document.getElementById('selectStockist');
+      var qtyInput = document.getElementById('inputQuantityBought');
+      var priceInput = document.getElementById('inputBuyPrice');
+
+      var name = nameInput ? nameInput.value.trim() : '';
+      var barcode = barcodeInput ? barcodeInput.value.trim() : '';
+      var category = categorySelect ? categorySelect.value : '';
+      var stockist = stockistSelect ? stockistSelect.value : '';
+      var qty = qtyInput ? parseInt(qtyInput.value, 10) : 0;
+      var buyPrice = priceInput ? parseFloat(priceInput.value) : 0;
+
+      if (!name) {
+        showToast('Item Name is required', 'error');
+        if (nameInput) nameInput.focus();
+        return;
+      }
+      if (isNaN(qty) || qty <= 0) {
+        showToast('Please enter a valid quantity (min 1)', 'error');
+        if (qtyInput) qtyInput.focus();
+        return;
+      }
+      if (isNaN(buyPrice) || buyPrice < 0) {
+        showToast('Please enter a valid buy price', 'error');
+        if (priceInput) priceInput.focus();
+        return;
+      }
+
+      var itemData = {
+        name: name,
+        barcode: barcode,
+        category: (category === '__ADD_NEW__' ? '' : category),
+        qty: qty,
+        buyPrice: buyPrice,
+        stockist: (stockist === '__ADD_NEW__' ? '' : stockist),
+        imageBase64: state.itemPhoto.base64 || '',
+        imageMimeType: state.itemPhoto.mime || ''
+      };
+
+      getRunner(function(res) {
+        showToast('Item added!', 'success');
+        // Clear form
+        if (nameInput) nameInput.value = '';
+        if (barcodeInput) barcodeInput.value = '';
+        if (categorySelect) categorySelect.value = '';
+        if (stockistSelect) stockistSelect.value = '';
+        if (qtyInput) qtyInput.value = '1';
+        if (priceInput) priceInput.value = '';
+        calculateAddItemTotalCost();
+        clearItemPhoto();
+
+        // Refresh stock & switch to inventory
+        loadInventory(false);
+        switchScreen('inventory');
+      }, function(err) {
+        showToast('Failed to add item: ' + err, 'error');
+      }, 'Saving item to inventory...').addInventoryItem(itemData);
+    }
+
+    // Category / Stockist Dropdown Populators
+    function populateCategoryDropdowns() {
+      var selectAdd = document.getElementById('selectCategory');
+      if (selectAdd) {
+        var currentVal = selectAdd.value;
+        var html = '<option value="">-- Select Category --</option>' +
+                   '<option value="__ADD_NEW__">+ Add New</option>';
+        for (var i = 0; i < state.categories.length; i++) {
+          var c = state.categories[i];
+          var cName = typeof c === 'object' ? c.name : c;
+          html = html + '<option value="' + escapeHtml(cName) + '">' + escapeHtml(cName) + '</option>';
+        }
+        selectAdd.innerHTML = html;
+        if (currentVal) selectAdd.value = currentVal;
+      }
+    }
+
+    function populateStockistDropdowns() {
+      var selectAdd = document.getElementById('selectStockist');
+      if (selectAdd) {
+        var currentVal = selectAdd.value;
+        var html = '<option value="">-- Select Stockist --</option>' +
+                   '<option value="__ADD_NEW__">+ Add New</option>';
+        for (var i = 0; i < state.stockists.length; i++) {
+          var s = state.stockists[i];
+          var sName = typeof s === 'object' ? s.name : s;
+          html = html + '<option value="' + escapeHtml(sName) + '">' + escapeHtml(sName) + '</option>';
+        }
+        selectAdd.innerHTML = html;
+        if (currentVal) selectAdd.value = currentVal;
+      }
+    }
+
+    function renderCategoryFilterBar() {
+      var bar = document.getElementById('inventoryCategoryFilterBar');
+      if (!bar) return;
+      var activeCat = state.selectedCategoryFilter || 'all';
+      var html = '<button type="button" class="filter-chip ' + (activeCat === 'all' ? 'active' : '') + '" data-category="all">All</button>';
+      for (var i = 0; i < state.categories.length; i++) {
+        var c = state.categories[i];
+        var cName = typeof c === 'object' ? c.name : c;
+        var isActive = activeCat === cName ? 'active' : '';
+        html = html + '<button type="button" class="filter-chip ' + isActive + '" data-category="' + escapeHtml(cName) + '">' + escapeHtml(cName) + '</button>';
+      }
+      bar.innerHTML = html;
+    }
+
+    // ========== INVENTORY SCREEN ==========
+    function filterInventory(query) {
+      state.searchQuery = (query || '').toLowerCase().trim();
+      var filtered = [];
+      var totalValue = 0;
+      var items = state.inventory || [];
+
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var matchesCat = state.selectedCategoryFilter === 'all' || (item.category && item.category === state.selectedCategoryFilter);
+        if (!matchesCat) continue;
+
+        var nameStr = (item.name || '').toLowerCase();
+        var barcodeStr = (item.barcode || '').toLowerCase();
+        var catStr = (item.category || '').toLowerCase();
+
+        var matchesSearch = !state.searchQuery ||
+          nameStr.indexOf(state.searchQuery) !== -1 ||
+          barcodeStr.indexOf(state.searchQuery) !== -1 ||
+          catStr.indexOf(state.searchQuery) !== -1;
+
+        if (matchesSearch) {
+          filtered.push(item);
+          var qty = parseInt(item.qtyInStock, 10) || 0;
+          var buyPrice = parseFloat(item.buyPrice) || 0;
+          totalValue = totalValue + (qty * buyPrice);
+        }
+      }
+
+      // Update Stats Bar
+      var countEl = document.getElementById('statsItemCount');
+      var valueEl = document.getElementById('statsTotalValue');
+      if (countEl) countEl.textContent = filtered.length + ' items';
+      if (valueEl) valueEl.textContent = 'Total value: ' + formatCurrency(totalValue);
+
+      renderInventoryList(filtered);
+    }
+
+    function renderInventoryList(items) {
+      var container = document.getElementById('inventoryListContainer');
+      var emptyState = document.getElementById('inventoryEmptyState');
+      if (!container) return;
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '';
+        if (emptyState) emptyState.style.display = 'block';
+        return;
+      }
+      if (emptyState) emptyState.style.display = 'none';
+
+      var html = '';
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var qty = parseInt(item.qtyInStock, 10) || 0;
+        var buyPrice = parseFloat(item.buyPrice) || 0;
+        var markupPct = parseFloat(item.markupPct) || 40;
+        var discountPct = parseFloat(item.discountPct) || 0;
+
+        // Pricing calculation: Buy * (1 + markup/100) * (1 - discount/100)
+        var markedUpPrice = buyPrice * (1 + (markupPct / 100));
+        var sellPrice = markedUpPrice * (1 - (discountPct / 100));
+
+        // Stock label styling
+        var stockBadgeClass = 'badge badge-success';
+        var stockText = 'Stock: ' + qty + ' units';
+        if (qty <= 0) {
+          stockBadgeClass = 'badge badge-danger';
+          stockText = 'Out of Stock';
+        } else if (qty <= 2) {
+          stockBadgeClass = 'badge badge-warning';
+          stockText = 'Low: ' + qty + ' units';
+        }
+
+        // Pricing display string
+        var priceHtml = 'Buy: ' + formatCurrency(buyPrice) + ' | Sell: ';
+        if (discountPct > 0) {
+          priceHtml = priceHtml + '<span class="item-price-strike">' + formatCurrency(markedUpPrice) + '</span> ' +
+                      '<span class="item-price-current">' + formatCurrency(sellPrice) + '</span>';
+        } else {
+          priceHtml = priceHtml + '<span class="item-price-current">' + formatCurrency(sellPrice) + '</span>';
+        }
+
+        // Image thumbnail
+        var thumbHtml = '📦';
+        if (item.imageUrl && item.imageUrl.length > 5) {
+          thumbHtml = '<img src="' + escapeHtml(item.imageUrl) + '" alt="' + escapeHtml(item.name) + '" loading="lazy">';
+        }
+
+        html = html +
+          '<div class="item-card" data-item-id="' + escapeHtml(item.id) + '">' +
+            '<div class="item-thumbnail">' + thumbHtml + '</div>' +
+            '<div class="item-details">' +
+              '<div class="item-name">' + escapeHtml(item.name) + '</div>' +
+              '<div class="item-meta">' +
+                (item.category ? '<span class="badge">' + escapeHtml(item.category) + '</span>' : '') +
+                '<span class="' + stockBadgeClass + '">' + stockText + '</span>' +
+              '</div>' +
+              '<div class="item-pricing">' + priceHtml + '</div>' +
+            '</div>' +
+          '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    // Item Detail Modal
+    function openItemDetail(itemId) {
+      state.selectedItemId = itemId;
+      var item = null;
+      for (var i = 0; i < state.inventory.length; i++) {
+        if (String(state.inventory[i].id) === String(itemId)) {
+          item = state.inventory[i];
+          break;
+        }
+      }
+      if (!item) return;
+
+      var modal = document.getElementById('modalItemDetail');
+      var nameEl = document.getElementById('modalDetailItemName');
+      var catEl = document.getElementById('modalDetailCategory');
+      var barcodeEl = document.getElementById('modalDetailBarcode');
+      var stockEl = document.getElementById('modalDetailStock');
+      var buyPriceEl = document.getElementById('modalDetailBuyPrice');
+      var stockistEl = document.getElementById('modalDetailStockist');
+      var dateAddedEl = document.getElementById('modalDetailDateAdded');
+      var markupInput = document.getElementById('modalDetailMarkup');
+      var discountInput = document.getElementById('modalDetailDiscount');
+      var imgWrap = document.getElementById('modalDetailImageWrap');
+      var imgEl = document.getElementById('modalDetailImage');
+
+      if (nameEl) nameEl.textContent = item.name || 'Unnamed Item';
+      if (catEl) {
+        catEl.textContent = item.category || 'General';
+        catEl.style.display = item.category ? 'inline-flex' : 'none';
+      }
+      if (barcodeEl) {
+        if (item.barcode) {
+          barcodeEl.textContent = 'SKU: ' + item.barcode;
+          barcodeEl.style.display = 'inline-flex';
+        } else {
+          barcodeEl.style.display = 'none';
+        }
+      }
+      if (stockEl) stockEl.textContent = (item.qtyInStock || 0) + ' units';
+      if (buyPriceEl) buyPriceEl.textContent = formatCurrency(item.buyPrice);
+      if (stockistEl) stockistEl.textContent = item.stockist || 'Not specified';
+      if (dateAddedEl) dateAddedEl.textContent = item.dateAdded || 'N/A';
+
+      if (markupInput) markupInput.value = item.markupPct !== undefined ? item.markupPct : 40;
+      if (discountInput) discountInput.value = item.discountPct !== undefined ? item.discountPct : 0;
+
+      if (imgWrap && imgEl) {
+        if (item.imageUrl && item.imageUrl.length > 5) {
+          imgEl.src = item.imageUrl;
+          imgWrap.style.display = 'block';
+        } else {
+          imgEl.src = '';
+          imgWrap.style.display = 'none';
+        }
+      }
+
+      recalcModalPricing(item);
+
+      if (modal) modal.className = 'modal-backdrop active';
+    }
+
+    function closeItemDetail() {
+      var modal = document.getElementById('modalItemDetail');
+      if (modal) modal.className = 'modal-backdrop';
+      state.selectedItemId = null;
+    }
+
+    function recalcModalPricing(item) {
+      if (!item) {
+        for (var i = 0; i < state.inventory.length; i++) {
+          if (String(state.inventory[i].id) === String(state.selectedItemId)) {
+            item = state.inventory[i];
+            break;
+          }
+        }
+      }
+      if (!item) return;
+
+      var markupInput = document.getElementById('modalDetailMarkup');
+      var discountInput = document.getElementById('modalDetailDiscount');
+      var sellPriceEl = document.getElementById('modalDetailSellPrice');
+      var formulaEl = document.getElementById('modalDetailFormula');
+
+      var buyPrice = parseFloat(item.buyPrice) || 0;
+      var markupPct = markupInput ? parseFloat(markupInput.value) : 40;
+      var discountPct = discountInput ? parseFloat(discountInput.value) : 0;
+
+      if (isNaN(markupPct)) markupPct = 0;
+      if (isNaN(discountPct)) discountPct = 0;
+
+      var markupFactor = 1 + (markupPct / 100);
+      var discountFactor = 1 - (discountPct / 100);
+      var finalSell = buyPrice * markupFactor * discountFactor;
+
+      if (sellPriceEl) sellPriceEl.textContent = formatCurrency(finalSell);
+      if (formulaEl) {
+        formulaEl.textContent = formatCurrency(buyPrice) + ' × ' +
+          markupFactor.toFixed(2) + ' × ' + discountFactor.toFixed(2) + ' = ' + formatCurrency(finalSell);
+      }
+    }
+
+    function updateItemPricing() {
+      if (!state.selectedItemId) return;
+      var markupInput = document.getElementById('modalDetailMarkup');
+      var discountInput = document.getElementById('modalDetailDiscount');
+
+      var markupPct = markupInput ? parseFloat(markupInput.value) : 0;
+      var discountPct = discountInput ? parseFloat(discountInput.value) : 0;
+
+      if (isNaN(markupPct) || markupPct < 0) markupPct = 0;
+      if (isNaN(discountPct) || discountPct < 0) discountPct = 0;
+
+      getRunner(function(res) {
+        showToast('Pricing updated successfully!', 'success');
+        closeItemDetail();
+        loadInventory(false);
+      }, function(err) {
+        showToast('Failed to update pricing: ' + err, 'error');
+      }, 'Updating pricing...').updateInventoryItem(state.selectedItemId, {
+        markupPct: markupPct,
+        discountPct: discountPct
+      });
+    }
+
+    function deleteItem(itemId) {
+      showConfirm('Are you sure you want to delete this inventory item? This cannot be undone.', function() {
+        getRunner(function(res) {
+          showToast('Item deleted.', 'info');
+          closeItemDetail();
+          loadInventory(false);
+        }, function(err) {
+          showToast('Failed to delete item: ' + err, 'error');
+        }, 'Deleting item...').deleteInventoryItem(itemId);
+      });
+    }
+
+    // ========== SELL SCREEN ==========
+    function populateSellItemSelector() {
+      var select = document.getElementById('sellItemSelect');
+      if (!select) return;
+
+      var currentVal = select.value;
+      var html = '<option value="">-- Select an item --</option>';
+
+      for (var i = 0; i < state.inventory.length; i++) {
+        var item = state.inventory[i];
+        var stock = parseInt(item.qtyInStock, 10) || 0;
+        var label = item.name + ' (' + stock + ' in stock)';
+        html = html + '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(label) + '</option>';
+      }
+      select.innerHTML = html;
+
+      if (currentVal) {
+        select.value = currentVal;
+        selectItemForSale(currentVal);
+      } else {
+        resetSellForm();
+      }
+    }
+
+    function resetSellForm() {
+      var infoCard = document.getElementById('sellItemInfoCard');
+      var pricingSection = document.getElementById('sellPricingSection');
+      var select = document.getElementById('sellItemSelect');
+      if (infoCard) infoCard.style.display = 'none';
+      if (pricingSection) pricingSection.style.display = 'none';
+      if (select) select.value = '';
+    }
+
+    function selectItemForSale(itemId) {
+      var infoCard = document.getElementById('sellItemInfoCard');
+      var pricingSection = document.getElementById('sellPricingSection');
+      if (!itemId) {
+        resetSellForm();
+        return;
+      }
+
+      var item = null;
+      for (var i = 0; i < state.inventory.length; i++) {
+        if (String(state.inventory[i].id) === String(itemId)) {
+          item = state.inventory[i];
+          break;
+        }
+      }
+      if (!item) {
+        resetSellForm();
+        return;
+      }
+
+      // Populate info card
+      var nameEl = document.getElementById('sellItemName');
+      var catBadge = document.getElementById('sellItemCategoryBadge');
+      var stockBadge = document.getElementById('sellItemStockBadge');
+      var buyPriceText = document.getElementById('sellItemBuyPriceText');
+      var thumbEl = document.getElementById('sellItemThumb');
+      var maxStockText = document.getElementById('sellMaxStockText');
+
+      var stock = parseInt(item.qtyInStock, 10) || 0;
+      var buyPrice = parseFloat(item.buyPrice) || 0;
+
+      if (nameEl) nameEl.textContent = item.name;
+      if (catBadge) catBadge.textContent = item.category || 'General';
+      if (stockBadge) {
+        stockBadge.textContent = 'Stock: ' + stock + ' units';
+        stockBadge.className = stock > 0 ? 'badge badge-success' : 'badge badge-danger';
+      }
+      if (buyPriceText) buyPriceText.textContent = 'Buy Price: ' + formatCurrency(buyPrice) + ' per unit';
+      if (maxStockText) maxStockText.textContent = stock;
+
+      if (thumbEl) {
+        if (item.imageUrl && item.imageUrl.length > 5) {
+          thumbEl.innerHTML = '<img src="' + escapeHtml(item.imageUrl) + '" alt="' + escapeHtml(item.name) + '">';
+        } else {
+          thumbEl.innerHTML = '📦';
+        }
+      }
+
+      // Pre-fill pricing inputs
+      var markupInput = document.getElementById('sellMarkupPct');
+      var discountInput = document.getElementById('sellDiscountPct');
+      var qtyInput = document.getElementById('sellQuantityInput');
+
+      if (markupInput) markupInput.value = item.markupPct !== undefined ? item.markupPct : 40;
+      if (discountInput) discountInput.value = item.discountPct !== undefined ? item.discountPct : 0;
+      if (qtyInput) {
+        qtyInput.value = '1';
+        qtyInput.max = stock > 0 ? stock : 1;
+      }
+
+      if (infoCard) infoCard.style.display = 'block';
+      if (pricingSection) pricingSection.style.display = 'block';
+
+      calculateSellPrice();
+    }
+
+    function calculateSellPrice() {
+      var select = document.getElementById('sellItemSelect');
+      var itemId = select ? select.value : null;
+      if (!itemId) return;
+
+      var item = null;
+      for (var i = 0; i < state.inventory.length; i++) {
+        if (String(state.inventory[i].id) === String(itemId)) {
+          item = state.inventory[i];
+          break;
+        }
+      }
+      if (!item) return;
+
+      var buyPrice = parseFloat(item.buyPrice) || 0;
+      var markupInput = document.getElementById('sellMarkupPct');
+      var discountInput = document.getElementById('sellDiscountPct');
+      var qtyInput = document.getElementById('sellQuantityInput');
+
+      var markupPct = markupInput ? parseFloat(markupInput.value) : 0;
+      var discountPct = discountInput ? parseFloat(discountInput.value) : 0;
+      var qty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
+
+      if (isNaN(markupPct)) markupPct = 0;
+      if (isNaN(discountPct)) discountPct = 0;
+      if (isNaN(qty) || qty < 1) qty = 1;
+
+      var markupFactor = 1 + (markupPct / 100);
+      var discountFactor = 1 - (discountPct / 100);
+      var sellPricePerUnit = buyPrice * markupFactor * discountFactor;
+
+      var calcPriceEl = document.getElementById('sellCalculatedPrice');
+      var formulaEl = document.getElementById('sellFormulaText');
+      var revEl = document.getElementById('sellSummaryRevenue');
+      var costEl = document.getElementById('sellSummaryCost');
+      var profitEl = document.getElementById('sellSummaryProfit');
+      var marginEl = document.getElementById('sellSummaryMargin');
+      var submitBtn = document.getElementById('btnRecordSaleSubmit');
+
+      var totalRevenue = sellPricePerUnit * qty;
+      var totalCost = buyPrice * qty;
+      var totalProfit = totalRevenue - totalCost;
+      var marginPct = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
+
+      if (calcPriceEl) calcPriceEl.textContent = formatCurrency(sellPricePerUnit);
+      if (formulaEl) {
+        formulaEl.textContent = formatCurrency(buyPrice) + ' × ' +
+          markupFactor.toFixed(2) + ' × ' + discountFactor.toFixed(2) + ' = ' + formatCurrency(sellPricePerUnit);
+      }
+
+      if (revEl) revEl.textContent = formatCurrency(totalRevenue);
+      if (costEl) costEl.textContent = formatCurrency(totalCost);
+      if (profitEl) {
+        profitEl.textContent = formatCurrency(totalProfit);
+        profitEl.style.color = totalProfit >= 0 ? '#137333' : '#c5221f';
+      }
+      if (marginEl) {
+        marginEl.textContent = marginPct.toFixed(1) + '%';
+        marginEl.style.color = marginPct >= 0 ? '#e37400' : '#c5221f';
+      }
+      if (submitBtn) {
+        submitBtn.textContent = 'Record Sale - ' + formatCurrency(totalRevenue) + ' Revenue';
+      }
+    }
+
+    function recordSale() {
+      var select = document.getElementById('sellItemSelect');
+      var itemId = select ? select.value : null;
+      if (!itemId) {
+        showToast('Please select an item to sell', 'error');
+        return;
+      }
+
+      var item = null;
+      for (var i = 0; i < state.inventory.length; i++) {
+        if (String(state.inventory[i].id) === String(itemId)) {
+          item = state.inventory[i];
+          break;
+        }
+      }
+      if (!item) return;
+
+      var stock = parseInt(item.qtyInStock, 10) || 0;
+      var qtyInput = document.getElementById('sellQuantityInput');
+      var markupInput = document.getElementById('sellMarkupPct');
+      var discountInput = document.getElementById('sellDiscountPct');
+
+      var qty = qtyInput ? parseInt(qtyInput.value, 10) : 0;
+      var markupPct = markupInput ? parseFloat(markupInput.value) : 0;
+      var discountPct = discountInput ? parseFloat(discountInput.value) : 0;
+
+      if (isNaN(qty) || qty <= 0) {
+        showToast('Quantity sold must be at least 1', 'error');
+        return;
+      }
+      if (qty > stock) {
+        showToast('Cannot sell ' + qty + ' units. Current stock is only ' + stock + '.', 'error');
+        return;
+      }
+
+      var custName = document.getElementById('sellCustomerName') ? document.getElementById('sellCustomerName').value.trim() : '';
+      var custEmail = document.getElementById('sellCustomerEmail') ? document.getElementById('sellCustomerEmail').value.trim() : '';
+      var custPhone = document.getElementById('sellCustomerPhone') ? document.getElementById('sellCustomerPhone').value.trim() : '';
+
+      getRunner(function(res) {
+        var profitStr = res && res.profit !== undefined ? formatCurrency(res.profit) : '';
+        showToast('Sale recorded! Profit: ' + profitStr, 'success');
+
+        // Store last sale for invoice generation
+        state.lastSale = {
+          saleId: res && res.saleId ? res.saleId : ('SAL_' + new Date().getTime()),
+          itemId: itemId,
+          itemName: (res && res.itemName) ? res.itemName : item.name,
+          qtySold: qty,
+          sellPrice: (res && res.sellPrice) ? res.sellPrice : (sellPricePerUnit || item.sellPrice),
+          revenue: (res && res.revenue) ? res.revenue : (sellPricePerUnit * qty),
+          date: (res && res.date) ? res.date : new Date().toLocaleString(),
+          customerName: custName || 'Valued Customer',
+          customerEmail: custEmail || '',
+          customerPhone: custPhone || ''
+        };
+
+        // Show post-sale action card
+        var postSaleCard = document.getElementById('postSaleActionCard');
+        var postSaleText = document.getElementById('postSaleDetailsText');
+        if (postSaleCard && postSaleText) {
+          postSaleText.textContent = state.lastSale.itemName + ' (' + qty + ' pcs) · ' + formatCurrency(state.lastSale.revenue);
+          postSaleCard.style.display = 'block';
+        }
+
+        // If customer email was provided upfront, auto-open invoice modal
+        if (custEmail) {
+          openInvoiceModalForSale(state.lastSale);
+        }
+
+        loadInventory(false);
+      }, function(err) {
+        showToast('Failed to record sale: ' + err, 'error');
+      }, 'Recording sale...').recordSale(itemId, qty, markupPct, discountPct);
+    }
+
+    // ========== P&L SCREEN ==========
+    function renderPnL(data) {
+      var totals = data && data.totals ? data.totals : { revenue: 0, cost: 0, profit: 0, margin: 0 };
+      var items = data && data.items ? data.items : [];
+
+      var revEl = document.getElementById('pnlTotalRevenue');
+      var costEl = document.getElementById('pnlTotalCost');
+      var profitEl = document.getElementById('pnlTotalProfit');
+      var marginEl = document.getElementById('pnlMarginPct');
+      var profitCard = document.getElementById('pnlProfitCard');
+
+      if (revEl) revEl.textContent = formatCurrency(totals.revenue);
+      if (costEl) costEl.textContent = formatCurrency(totals.cost);
+      if (profitEl) {
+        profitEl.textContent = formatCurrency(totals.profit);
+        profitEl.style.color = totals.profit >= 0 ? '#137333' : '#c5221f';
+      }
+      if (profitCard) {
+        profitCard.className = 'stat-card ' + (totals.profit >= 0 ? 'green' : 'red');
+      }
+      if (marginEl) {
+        var mNum = parseFloat(totals.margin) || 0;
+        marginEl.textContent = mNum.toFixed(1) + '%';
+      }
+
+      var container = document.getElementById('pnlItemListContainer');
+      var emptyEl = document.getElementById('pnlEmptyState');
+      if (!container) return;
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+
+      // Sort items by profit descending
+      items.sort(function(a, b) {
+        return (parseFloat(b.profit) || 0) - (parseFloat(a.profit) || 0);
+      });
+
+      var html = '';
+      for (var i = 0; i < items.length; i++) {
+        var row = items[i];
+        var pVal = parseFloat(row.profit) || 0;
+        var pColor = pVal >= 0 ? '#137333' : '#c5221f';
+        var mVal = parseFloat(row.margin) || 0;
+
+        html = html +
+          '<div class="pnl-row-card">' +
+            '<div>' +
+              '<div class="pnl-row-title">' + escapeHtml(row.name) + '</div>' +
+              '<div class="pnl-row-sub">' + (row.unitsSold || 0) + ' units sold · Rev: ' + formatCurrency(row.revenue) + '</div>' +
+            '</div>' +
+            '<div class="pnl-row-right">' +
+              '<div class="pnl-row-profit" style="color:' + pColor + ';">' + formatCurrency(pVal) + '</div>' +
+              '<div class="pnl-row-margin">' + mVal.toFixed(1) + '% margin</div>' +
+            '</div>' +
+          '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ========== STOCKISTS & BUSINESS CARD OCR ==========
+    function renderStockists(stockists) {
+      var container = document.getElementById('stockistsListContainer');
+      var emptyText = document.getElementById('stockistsEmptyText');
+      if (!container) return;
+
+      if (!stockists || stockists.length === 0) {
+        container.innerHTML = '';
+        if (emptyText) emptyText.style.display = 'block';
+        return;
+      }
+      if (emptyText) emptyText.style.display = 'none';
+
+      var html = '';
+      for (var i = 0; i < stockists.length; i++) {
+        var s = stockists[i];
+        var thumbHtml = '📇';
+        if (s.imageUrl && s.imageUrl.length > 5) {
+          thumbHtml = '<img src="' + escapeHtml(s.imageUrl) + '" alt="' + escapeHtml(s.name) + '" loading="lazy">';
+        }
+
+        html = html +
+          '<div class="stockist-card">' +
+            '<div class="stockist-thumb">' + thumbHtml + '</div>' +
+            '<div class="stockist-info">' +
+              '<div class="stockist-name">' + escapeHtml(s.name) + '</div>' +
+              (s.phone ? '<a href="tel:' + escapeHtml(s.phone) + '" class="stockist-phone">📞 ' + escapeHtml(s.phone) + '</a><br>' : '') +
+              (s.address ? '<div class="stockist-address">' + escapeHtml(s.address) + '</div>' : '') +
+            '</div>' +
+            '<button type="button" class="icon-btn btnDeleteStockist" data-id="' + escapeHtml(s.id) + '" title="Delete" style="color:#c5221f;">🗑️</button>' +
+          '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function handleStockistCameraCapture(event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+      showLoading(true, 'Processing card image...');
+      processImageFile(file, function(result) {
+        showLoading(false);
+        state.stockistPhoto = result;
+        var previewImg = document.getElementById('stockistPreviewImg');
+        var previewContainer = document.getElementById('stockistPreviewContainer');
+        var cameraBox = document.getElementById('stockistCameraBox');
+        if (previewImg) previewImg.src = result.dataUrl;
+        if (previewContainer) previewContainer.style.display = 'block';
+        if (cameraBox) cameraBox.style.display = 'none';
+      });
+    }
+
+    function clearStockistPhoto() {
+      state.stockistPhoto = { base64: '', mime: '', dataUrl: '' };
+      var fileInput = document.getElementById('stockistCameraInput');
+      if (fileInput) fileInput.value = '';
+      var previewImg = document.getElementById('stockistPreviewImg');
+      var previewContainer = document.getElementById('stockistPreviewContainer');
+      var cameraBox = document.getElementById('stockistCameraBox');
+      if (previewImg) previewImg.src = '';
+      if (previewContainer) previewContainer.style.display = 'none';
+      if (cameraBox) cameraBox.style.display = 'flex';
+    }
+
+    function scanBusinessCard() {
+      if (!state.stockistPhoto.base64) {
+        showToast('Please take or upload a business card photo first', 'warning');
+        return;
+      }
+      getRunner(function(res) {
+        if (!res) {
+          showToast('Could not extract details from card', 'warning');
+          return;
+        }
+        var nameInput = document.getElementById('inputStockistName');
+        var phoneInput = document.getElementById('inputStockistPhone');
+        var addressInput = document.getElementById('inputStockistAddress');
+
+        var name = res.businessName || res.personName || res.name || '';
+        if (name && nameInput) nameInput.value = name;
+        if (res.phone && phoneInput) phoneInput.value = res.phone;
+        if (res.address && addressInput) addressInput.value = res.address;
+
+        showToast('Business card scanned successfully!', 'success');
+      }, function(err) {
+        showToast('Business card OCR failed: ' + err, 'error');
+      }, 'Scanning card with Gemini AI...').ocrWithGemini(state.stockistPhoto.base64, state.stockistPhoto.mime, 'business_card');
+    }
+
+    function submitNewStockist() {
+      var nameInput = document.getElementById('inputStockistName');
+      var phoneInput = document.getElementById('inputStockistPhone');
+      var addressInput = document.getElementById('inputStockistAddress');
+
+      var name = nameInput ? nameInput.value.trim() : '';
+      var phone = phoneInput ? phoneInput.value.trim() : '';
+      var address = addressInput ? addressInput.value.trim() : '';
+
+      if (!name) {
+        showToast('Stockist name is required', 'error');
+        if (nameInput) nameInput.focus();
+        return;
+      }
+
+      var stockistData = {
+        name: name,
+        phone: phone,
+        address: address,
+        imageBase64: state.stockistPhoto.base64 || '',
+        imageMimeType: state.stockistPhoto.mime || ''
+      };
+
+      getRunner(function(res) {
+        showToast('Stockist added successfully!', 'success');
+        // Clear modal form
+        if (nameInput) nameInput.value = '';
+        if (phoneInput) phoneInput.value = '';
+        if (addressInput) addressInput.value = '';
+        clearStockistPhoto();
+        closeAddStockistModal();
+
+        // Refresh stockists
+        loadStockists();
+      }, function(err) {
+        showToast('Failed to save stockist: ' + err, 'error');
+      }, 'Saving stockist...').addStockist(stockistData);
+    }
+
+    function deleteStockist(stockistId) {
+      showConfirm('Are you sure you want to delete this stockist?', function() {
+        getRunner(function(res) {
+          showToast('Stockist deleted', 'info');
+          loadStockists();
+        }, function(err) {
+          showToast('Failed to delete stockist: ' + err, 'error');
+        }, 'Deleting stockist...').deleteStockist(stockistId);
+      });
+    }
+
+    function openAddStockistModal() {
+      var modal = document.getElementById('modalAddStockist');
+      if (modal) modal.className = 'modal-backdrop active';
+    }
+
+    function closeAddStockistModal() {
+      var modal = document.getElementById('modalAddStockist');
+      if (modal) modal.className = 'modal-backdrop';
+      clearStockistPhoto();
+    }
+
+    // ========== CATEGORIES MANAGEMENT ==========
+    function renderCategories(categories) {
+      var container = document.getElementById('categoriesChipsContainer');
+      if (!container) return;
+
+      if (!categories || categories.length === 0) {
+        container.innerHTML = '<span style="font-size:12px; color:#80868b;">No categories created yet.</span>';
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < categories.length; i++) {
+        var cat = categories[i];
+        var catId = typeof cat === 'object' ? cat.id : cat;
+        var catName = typeof cat === 'object' ? cat.name : cat;
+
+        html = html +
+          '<div class="chip-item">' +
+            '<span>' + escapeHtml(catName) + '</span>' +
+            '<button type="button" class="chip-delete-btn btnDeleteCategory" data-id="' + escapeHtml(catId) + '" title="Delete">✕</button>' +
+          '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function addNewCategory(categoryName, callback) {
+      var name = (categoryName || '').trim();
+      if (!name) {
+        showToast('Category name cannot be empty', 'error');
+        return;
+      }
+      getRunner(function(res) {
+        showToast('Category added!', 'success');
+        loadCategories();
+        if (callback) callback(name);
+      }, function(err) {
+        showToast('Failed to add category: ' + err, 'error');
+      }, 'Adding category...').addCategory(name);
+    }
+
+    function deleteCategory(categoryId) {
+      showConfirm('Are you sure you want to delete this category?', function() {
+        getRunner(function(res) {
+          showToast('Category deleted', 'info');
+          loadCategories();
+        }, function(err) {
+          showToast('Failed to delete category: ' + err, 'error');
+        }, 'Deleting category...').deleteCategory(categoryId);
+      });
+    }
+
+    // ========== SETTINGS (GEMINI API KEY) ==========
+    function saveGeminiKey() {
+      var keyInput = document.getElementById('inputGeminiApiKey');
+      var key = keyInput ? keyInput.value.trim() : '';
+      if (!key) {
+        showToast('Please enter a valid API key', 'error');
+        return;
+      }
+      getRunner(function(res) {
+        showToast('Gemini API key saved!', 'success');
+        if (keyInput) keyInput.value = '';
+        loadGeminiKey();
+      }, function(err) {
+        showToast('Failed to save API key: ' + err, 'error');
+      }, 'Saving API key...').saveGeminiApiKey(key);
+    }
+
+    function toggleApiKeyVisibility() {
+      var input = document.getElementById('inputGeminiApiKey');
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+      } else {
+        input.type = 'password';
+      }
+    }
+
+    // ========== SETTINGS (APPS SCRIPT WEB APP URL - VERCEL) ==========
+    function loadAppsScriptUrlSettings() {
+      var urlInput = document.getElementById('inputAppsScriptUrl');
+      var statusEl = document.getElementById('appsScriptUrlStatus');
+      var isNative = typeof google !== 'undefined' && google.script && google.script.run;
+
+      if (isNative) {
+        if (statusEl) {
+          statusEl.textContent = 'Mode: Running natively inside Google Apps Script';
+          statusEl.style.color = '#137333';
+        }
+        if (urlInput) {
+          urlInput.disabled = true;
+          urlInput.placeholder = 'Running inside Apps Script (No proxy URL needed)';
+        }
+        return;
+      }
+
+      var savedUrl = '';
+      try {
+        savedUrl = localStorage.getItem('crimson_apps_script_url') || '';
+      } catch(e) {}
+
+      if (urlInput && savedUrl) {
+        urlInput.value = savedUrl;
+      }
+
+      if (statusEl) {
+        if (savedUrl) {
+          statusEl.textContent = 'Custom URL saved: ' + savedUrl.substring(0, 35) + '...';
+          statusEl.style.color = '#137333';
+        } else {
+          statusEl.textContent = 'Using Vercel APPS_SCRIPT_URL environment variable if set';
+          statusEl.style.color = '#5f6368';
+        }
+      }
+    }
+
+    function saveAppsScriptUrl() {
+      var urlInput = document.getElementById('inputAppsScriptUrl');
+      var statusEl = document.getElementById('appsScriptUrlStatus');
+      var url = urlInput ? urlInput.value.trim() : '';
+
+      if (!url) {
+        try {
+          localStorage.removeItem('crimson_apps_script_url');
+        } catch(e) {}
+        if (statusEl) {
+          statusEl.textContent = 'Custom URL cleared. Using Vercel env variable.';
+          statusEl.style.color = '#5f6368';
+        }
+        showToast('Web App URL cleared from browser storage', 'info');
+        return;
+      }
+
+      if (url.indexOf('https://script.google.com/') !== 0) {
+        showToast('URL must begin with https://script.google.com/macros/s/...', 'error');
+        return;
+      }
+
+      try {
+        localStorage.setItem('crimson_apps_script_url', url);
+      } catch(e) {}
+
+      if (statusEl) {
+        statusEl.textContent = 'Saved! Connecting to Google Apps Script...';
+        statusEl.style.color = '#137333';
+      }
+      showToast('Apps Script URL saved! Testing connection...', 'info');
+
+      // Test connection and reload data
+      testBackendConnection(true);
+    }
+
+    function testBackendConnection(silent) {
+      getRunner(function(res) {
+        var statusEl = document.getElementById('appsScriptUrlStatus');
+        if (statusEl) {
+          statusEl.textContent = '✓ Backend connected successfully!';
+          statusEl.style.color = '#137333';
+        }
+        showToast('Backend connection verified!', 'success');
+        // Reload all data
+        loadCompanySettings();
+        loadInventory();
+        loadCategories();
+        loadStockists();
+      }, function(err) {
+        var statusEl = document.getElementById('appsScriptUrlStatus');
+        if (statusEl) {
+          statusEl.textContent = '✗ Connection failed: ' + err;
+          statusEl.style.color = '#c5221f';
+        }
+        showToast('Backend connection error: ' + err, 'error');
+      }, 'Testing backend connection...').getInventory();
+    }
+
+    // ========== COMPANY PROFILE & LOGO ==========
+    function loadCompanySettings() {
+      getRunner(function(settings) {
+        if (!settings) return;
+        state.companySettings = settings;
+
+        // Update header brand & logo
+        var brandEl = document.getElementById('headerBrandName');
+        var logoEl = document.getElementById('headerCompanyLogo');
+        if (brandEl && settings.companyName) brandEl.textContent = settings.companyName;
+        if (logoEl) {
+          if (settings.companyLogo) {
+            logoEl.src = settings.companyLogo;
+            logoEl.style.display = 'block';
+          } else {
+            logoEl.style.display = 'none';
+          }
+        }
+
+        // Update settings inputs if elements exist
+        var nameInput = document.getElementById('inputCompanyName');
+        var phoneInput = document.getElementById('inputCompanyPhone');
+        var emailInput = document.getElementById('inputCompanyEmail');
+        var addrInput = document.getElementById('inputCompanyAddress');
+        var logoUrlInput = document.getElementById('inputCompanyLogoUrl');
+        var previewImg = document.getElementById('logoPreviewImg');
+        var iconEl = document.getElementById('logoPlaceholderIcon');
+
+        if (nameInput) nameInput.value = settings.companyName || 'Crimson Charm';
+        if (phoneInput) phoneInput.value = settings.companyPhone || '';
+        if (emailInput) emailInput.value = settings.companyEmail || '';
+        if (addrInput) addrInput.value = settings.companyAddress || '';
+        if (logoUrlInput) logoUrlInput.value = settings.companyLogo || '';
+        if (previewImg && iconEl) {
+          if (settings.companyLogo) {
+            previewImg.src = settings.companyLogo;
+            previewImg.style.display = 'block';
+            iconEl.style.display = 'none';
+          } else {
+            previewImg.src = '';
+            previewImg.style.display = 'none';
+            iconEl.style.display = 'block';
+          }
+        }
+      }, function(err) {
+        console.warn('Could not load company settings:', err);
+      }).getCompanySettings();
+    }
+
+    function handleLogoFileSelect(event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+      showLoading(true, 'Processing logo...');
+      processImageFile(file, function(result) {
+        showLoading(false);
+        state.logoPhoto = result;
+        var previewImg = document.getElementById('logoPreviewImg');
+        var iconEl = document.getElementById('logoPlaceholderIcon');
+        if (previewImg) {
+          previewImg.src = result.dataUrl;
+          previewImg.style.display = 'block';
+        }
+        if (iconEl) iconEl.style.display = 'none';
+        showToast('Logo image selected! Tap Save Company Profile to save.', 'info');
+      });
+    }
+
+    function saveCompanyProfile() {
+      var nameInput = document.getElementById('inputCompanyName');
+      var phoneInput = document.getElementById('inputCompanyPhone');
+      var emailInput = document.getElementById('inputCompanyEmail');
+      var addrInput = document.getElementById('inputCompanyAddress');
+      var logoUrlInput = document.getElementById('inputCompanyLogoUrl');
+
+      var payload = {
+        companyName: nameInput ? nameInput.value.trim() : 'Crimson Charm',
+        companyPhone: phoneInput ? phoneInput.value.trim() : '',
+        companyEmail: emailInput ? emailInput.value.trim() : '',
+        companyAddress: addrInput ? addrInput.value.trim() : '',
+        companyLogo: logoUrlInput ? logoUrlInput.value.trim() : '',
+        logoBase64: state.logoPhoto.base64 || '',
+        logoMimeType: state.logoPhoto.mime || ''
+      };
+
+      getRunner(function(res) {
+        showToast('Company profile & logo saved!', 'success');
+        state.logoPhoto = { base64: '', mime: '', dataUrl: '' };
+        loadCompanySettings();
+      }, function(err) {
+        showToast('Failed to save profile: ' + err, 'error');
+      }, 'Saving company profile...').saveCompanySettings(payload);
+    }
+
+    // ========== INVOICE GENERATOR & EMAILER ==========
+    function openInvoiceModalForSale(sale) {
+      if (!sale) return;
+      var company = state.companySettings || {};
+      var invoiceModal = document.getElementById('modalInvoice');
+      var compNameEl = document.getElementById('invoiceCompanyName');
+      var compContactEl = document.getElementById('invoiceCompanyContact');
+      var logoEl = document.getElementById('invoicePreviewLogo');
+      var numEl = document.getElementById('invoiceDisplayNumber');
+      var dateEl = document.getElementById('invoiceDisplayDate');
+      var custNameEl = document.getElementById('invoiceDisplayCustomerName');
+      var custEmailEl = document.getElementById('invoiceDisplayCustomerEmail');
+      var custPhoneEl = document.getElementById('invoiceDisplayCustomerPhone');
+      var tbody = document.getElementById('invoiceTableBody');
+      var grandTotalEl = document.getElementById('invoiceDisplayGrandTotal');
+      var emailInput = document.getElementById('invoiceRecipientEmail');
+
+      var invNumber = 'INV-CC-' + (sale.saleId ? sale.saleId.replace(/^SAL_/, '').slice(-6) : new Date().getTime().toString().slice(-6));
+      var invDate = sale.date || new Date().toLocaleDateString('en-IN');
+      var custName = sale.customerName || 'Valued Customer';
+      var custEmail = sale.customerEmail || '';
+      var custPhone = sale.customerPhone || '';
+
+      if (compNameEl) compNameEl.textContent = company.companyName || 'Crimson Charm';
+      if (compContactEl) {
+        var contactStr = [];
+        if (company.companyAddress) contactStr.push(company.companyAddress);
+        if (company.companyPhone) contactStr.push('Tel: ' + company.companyPhone);
+        if (company.companyEmail) contactStr.push(company.companyEmail);
+        compContactEl.innerHTML = contactStr.length > 0 ? contactStr.join('<br>') : 'Inventory &amp; Retail';
+      }
+
+      if (logoEl) {
+        if (company.companyLogo) {
+          logoEl.src = company.companyLogo;
+          logoEl.style.display = 'block';
+        } else {
+          logoEl.style.display = 'none';
+        }
+      }
+
+      if (numEl) numEl.textContent = '#' + invNumber;
+      if (dateEl) dateEl.textContent = invDate;
+      if (custNameEl) custNameEl.textContent = custName;
+      if (custEmailEl) custEmailEl.textContent = custEmail || 'No email specified';
+      if (custPhoneEl) {
+        custPhoneEl.textContent = custPhone ? 'Phone: ' + custPhone : '';
+        custPhoneEl.style.display = custPhone ? 'block' : 'none';
+      }
+
+      // Populate items table
+      if (tbody) {
+        var unitPrice = parseFloat(sale.sellPrice) || 0;
+        var totalAmount = parseFloat(sale.revenue) || (unitPrice * (sale.qtySold || 1));
+        tbody.innerHTML = '<tr>' +
+          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; font-weight:600;">' + escapeHtml(sale.itemName) + '</td>' +
+          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; text-align:center;">' + (sale.qtySold || 1) + '</td>' +
+          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; text-align:right;">' + formatCurrency(unitPrice) + '</td>' +
+          '<td style="padding:8px 4px; border-bottom:1px solid #edf2f7; text-align:right; font-weight:700; color:#9b111e;">' + formatCurrency(totalAmount) + '</td>' +
+          '</tr>';
+      }
+
+      if (grandTotalEl) grandTotalEl.textContent = formatCurrency(sale.revenue);
+      if (emailInput) emailInput.value = custEmail;
+
+      // Save to state for sending
+      state.currentInvoiceData = {
+        invoiceNumber: invNumber,
+        date: invDate,
+        customerName: custName,
+        customerEmail: custEmail,
+        customerPhone: custPhone,
+        items: [{
+          name: sale.itemName,
+          qty: sale.qtySold || 1,
+          unitPrice: parseFloat(sale.sellPrice) || 0,
+          amount: parseFloat(sale.revenue) || 0
+        }],
+        totalAmount: parseFloat(sale.revenue) || 0,
+        notes: 'Thank you for shopping with Crimson Charm!'
+      };
+
+      if (invoiceModal) invoiceModal.className = 'modal-backdrop active';
+    }
+
+    function closeInvoiceModal() {
+      var invoiceModal = document.getElementById('modalInvoice');
+      if (invoiceModal) invoiceModal.className = 'modal-backdrop';
+    }
+
+    function sendCurrentInvoiceEmail() {
+      if (!state.currentInvoiceData) {
+        showToast('No active invoice to send', 'error');
+        return;
+      }
+      var emailInput = document.getElementById('invoiceRecipientEmail');
+      var email = emailInput ? emailInput.value.trim() : '';
+
+      if (!email || email.indexOf('@') === -1) {
+        showToast('Please enter a valid customer email address', 'error');
+        if (emailInput) emailInput.focus();
+        return;
+      }
+
+      state.currentInvoiceData.customerEmail = email;
+
+      getRunner(function(res) {
+        showToast('Invoice emailed to ' + email + '!', 'success');
+        closeInvoiceModal();
+      }, function(err) {
+        showToast('Failed to email invoice: ' + err, 'error');
+      }, 'Sending invoice via email...').sendInvoiceEmail(state.currentInvoiceData);
+    }
+
+    // ========== DOM EVENT LISTENERS INITIALIZATION ==========
+    document.addEventListener('DOMContentLoaded', function() {
+      // 1. Bottom Navigation Tabs
+      var navTabs = document.querySelectorAll('.nav-tab');
+      for (var i = 0; i < navTabs.length; i++) {
+        (function(tab) {
+          tab.addEventListener('click', function() {
+            var screen = tab.getAttribute('data-screen');
+            if (screen) switchScreen(screen);
+          });
+        })(navTabs[i]);
+      }
+
+      // 2. Header Refresh Button
+      var btnRefresh = document.getElementById('btnRefresh');
+      if (btnRefresh) {
+        btnRefresh.addEventListener('click', function() {
+          if (state.currentScreen === 'inventory') {
+            loadInventory();
+          } else if (state.currentScreen === 'pnl') {
+            loadPnL(state.activePeriod);
+          } else if (state.currentScreen === 'more') {
+            loadStockists();
+            loadCategories();
+            loadGeminiKey();
+          } else if (state.currentScreen === 'sell') {
+            loadInventory(false);
+          } else {
+            loadCategories();
+            loadStockists();
+            showToast('Refreshed options', 'info');
+          }
+        });
+      }
+
+      // 3. Add Item Screen Listeners
+      var itemCameraBox = document.getElementById('itemCameraBox');
+      var itemCameraInput = document.getElementById('itemCameraInput');
+      if (itemCameraBox && itemCameraInput) {
+        itemCameraBox.addEventListener('click', function() {
+          itemCameraInput.click();
+        });
+        itemCameraInput.addEventListener('change', handleItemCameraCapture);
+      }
+
+      var btnScanItemLabel = document.getElementById('btnScanItemLabel');
+      if (btnScanItemLabel) {
+        btnScanItemLabel.addEventListener('click', scanItemLabel);
+      }
+
+      var btnClearItemPhoto = document.getElementById('btnClearItemPhoto');
+      if (btnClearItemPhoto) {
+        btnClearItemPhoto.addEventListener('click', clearItemPhoto);
+      }
+
+      var inputQtyBought = document.getElementById('inputQuantityBought');
+      var inputBuyPrice = document.getElementById('inputBuyPrice');
+      if (inputQtyBought) inputQtyBought.addEventListener('input', calculateAddItemTotalCost);
+      if (inputBuyPrice) inputBuyPrice.addEventListener('input', calculateAddItemTotalCost);
+
+      var btnAddItemSubmit = document.getElementById('btnAddItemSubmit');
+      if (btnAddItemSubmit) {
+        btnAddItemSubmit.addEventListener('click', submitNewItem);
+      }
+
+      // Category Add New Trigger in Add Item Screen
+      var selectCategory = document.getElementById('selectCategory');
+      var inlineCatBox = document.getElementById('inlineCategoryBox');
+      var btnSaveInlineCat = document.getElementById('btnSaveInlineCategory');
+      var btnCancelInlineCat = document.getElementById('btnCancelInlineCategory');
+      var inputInlineCatName = document.getElementById('inputInlineCategoryName');
+
+      if (selectCategory) {
+        selectCategory.addEventListener('change', function() {
+          if (selectCategory.value === '__ADD_NEW__') {
+            if (inlineCatBox) inlineCatBox.style.display = 'block';
+            if (inputInlineCatName) {
+              inputInlineCatName.value = '';
+              inputInlineCatName.focus();
+            }
+          } else {
+            if (inlineCatBox) inlineCatBox.style.display = 'none';
+          }
+        });
+      }
+
+      if (btnSaveInlineCat) {
+        btnSaveInlineCat.addEventListener('click', function() {
+          var val = inputInlineCatName ? inputInlineCatName.value : '';
+          addNewCategory(val, function(newCatName) {
+            if (inlineCatBox) inlineCatBox.style.display = 'none';
+            if (selectCategory) selectCategory.value = newCatName;
+          });
+        });
+      }
+
+      if (btnCancelInlineCat) {
+        btnCancelInlineCat.addEventListener('click', function() {
+          if (inlineCatBox) inlineCatBox.style.display = 'none';
+          if (selectCategory) selectCategory.value = '';
+        });
+      }
+
+      // Stockist Add New Trigger in Add Item Screen
+      var selectStockist = document.getElementById('selectStockist');
+      if (selectStockist) {
+        selectStockist.addEventListener('change', function() {
+          if (selectStockist.value === '__ADD_NEW__') {
+            openAddStockistModal();
+          }
+        });
+      }
+
+      // 4. Inventory Screen Listeners
+      var searchInput = document.getElementById('inventorySearchInput');
+      var searchClear = document.getElementById('inventorySearchClear');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          var val = searchInput.value;
+          if (searchClear) searchClear.style.display = val.length > 0 ? 'block' : 'none';
+          filterInventory(val);
+        });
+      }
+      if (searchClear) {
+        searchClear.addEventListener('click', function() {
+          if (searchInput) searchInput.value = '';
+          searchClear.style.display = 'none';
+          filterInventory('');
+        });
+      }
+
+      var categoryFilterBar = document.getElementById('inventoryCategoryFilterBar');
+      if (categoryFilterBar) {
+        categoryFilterBar.addEventListener('click', function(e) {
+          var target = e.target;
+          if (target && target.classList.contains('filter-chip')) {
+            var cat = target.getAttribute('data-category');
+            state.selectedCategoryFilter = cat || 'all';
+            var chips = categoryFilterBar.querySelectorAll('.filter-chip');
+            for (var c = 0; c < chips.length; c++) {
+              chips[c].className = 'filter-chip';
+            }
+            target.className = 'filter-chip active';
+            filterInventory(state.searchQuery);
+          }
+        });
+      }
+
+      var inventoryListContainer = document.getElementById('inventoryListContainer');
+      if (inventoryListContainer) {
+        inventoryListContainer.addEventListener('click', function(e) {
+          var card = e.target.closest('.item-card');
+          if (card) {
+            var itemId = card.getAttribute('data-item-id');
+            if (itemId) openItemDetail(itemId);
+          }
+        });
+      }
+
+      // 5. Item Detail Modal Listeners
+      var btnCloseDetail = document.getElementById('btnCloseItemDetail');
+      if (btnCloseDetail) btnCloseDetail.addEventListener('click', closeItemDetail);
+
+      var modalDetailMarkup = document.getElementById('modalDetailMarkup');
+      var modalDetailDiscount = document.getElementById('modalDetailDiscount');
+      if (modalDetailMarkup) modalDetailMarkup.addEventListener('input', function() { recalcModalPricing(); });
+      if (modalDetailDiscount) modalDetailDiscount.addEventListener('input', function() { recalcModalPricing(); });
+
+      var btnModalUpdatePricing = document.getElementById('btnModalUpdatePricing');
+      if (btnModalUpdatePricing) btnModalUpdatePricing.addEventListener('click', updateItemPricing);
+
+      var btnModalSellItem = document.getElementById('btnModalSellItem');
+      if (btnModalSellItem) {
+        btnModalSellItem.addEventListener('click', function() {
+          var idToSell = state.selectedItemId;
+          closeItemDetail();
+          switchScreen('sell');
+          var sellSelect = document.getElementById('sellItemSelect');
+          if (sellSelect && idToSell) {
+            sellSelect.value = idToSell;
+            selectItemForSale(idToSell);
+          }
+        });
+      }
+
+      var linkModalDeleteItem = document.getElementById('linkModalDeleteItem');
+      if (linkModalDeleteItem) {
+        linkModalDeleteItem.addEventListener('click', function() {
+          if (state.selectedItemId) deleteItem(state.selectedItemId);
+        });
+      }
+
+      // 6. Sell Screen Listeners
+      var sellItemSelect = document.getElementById('sellItemSelect');
+      if (sellItemSelect) {
+        sellItemSelect.addEventListener('change', function() {
+          selectItemForSale(sellItemSelect.value);
+        });
+      }
+
+      var sellMarkupPct = document.getElementById('sellMarkupPct');
+      var sellDiscountPct = document.getElementById('sellDiscountPct');
+      var sellQuantityInput = document.getElementById('sellQuantityInput');
+
+      if (sellMarkupPct) sellMarkupPct.addEventListener('input', calculateSellPrice);
+      if (sellDiscountPct) sellDiscountPct.addEventListener('input', calculateSellPrice);
+      if (sellQuantityInput) sellQuantityInput.addEventListener('input', calculateSellPrice);
+
+      // Quick Qty Buttons: [1] [2] [5] [10]
+      var quickQtyBtns = document.querySelectorAll('.quick-qty-btn');
+      for (var q = 0; q < quickQtyBtns.length; q++) {
+        (function(btn) {
+          btn.addEventListener('click', function() {
+            var targetQty = parseInt(btn.getAttribute('data-qty'), 10);
+            if (!isNaN(targetQty) && sellQuantityInput) {
+              var maxStock = parseInt(document.getElementById('sellMaxStockText').textContent, 10) || targetQty;
+              if (targetQty > maxStock) targetQty = maxStock;
+              sellQuantityInput.value = targetQty > 0 ? targetQty : 1;
+              calculateSellPrice();
+            }
+          });
+        })(quickQtyBtns[q]);
+      }
+
+      var btnSellQtyMax = document.getElementById('btnSellQtyMax');
+      if (btnSellQtyMax) {
+        btnSellQtyMax.addEventListener('click', function() {
+          var select = document.getElementById('sellItemSelect');
+          var itemId = select ? select.value : null;
+          if (!itemId) return;
+          for (var i = 0; i < state.inventory.length; i++) {
+            if (String(state.inventory[i].id) === String(itemId)) {
+              var stock = parseInt(state.inventory[i].qtyInStock, 10) || 0;
+              if (sellQuantityInput) {
+                sellQuantityInput.value = stock > 0 ? stock : 1;
+                calculateSellPrice();
+              }
+              break;
+            }
+          }
+        });
+      }
+
+      var btnRecordSaleSubmit = document.getElementById('btnRecordSaleSubmit');
+      if (btnRecordSaleSubmit) {
+        btnRecordSaleSubmit.addEventListener('click', recordSale);
+      }
+
+      // 7. P&L Segmented Control
+      var pnlPeriodToggle = document.getElementById('pnlPeriodToggle');
+      if (pnlPeriodToggle) {
+        pnlPeriodToggle.addEventListener('click', function(e) {
+          var btn = e.target.closest('.segment-btn');
+          if (btn) {
+            var period = btn.getAttribute('data-period');
+            var segBtns = pnlPeriodToggle.querySelectorAll('.segment-btn');
+            for (var b = 0; b < segBtns.length; b++) {
+              segBtns[b].className = 'segment-btn';
+            }
+            btn.className = 'segment-btn active';
+            loadPnL(period);
+          }
+        });
+      }
+
+      // 8. More Screen Listeners (Stockists & Categories)
+      var btnOpenAddStockistModal = document.getElementById('btnOpenAddStockistModal');
+      var btnCloseAddStockist = document.getElementById('btnCloseAddStockist');
+      if (btnOpenAddStockistModal) btnOpenAddStockistModal.addEventListener('click', openAddStockistModal);
+      if (btnCloseAddStockist) btnCloseAddStockist.addEventListener('click', closeAddStockistModal);
+
+      var stockistCameraBox = document.getElementById('stockistCameraBox');
+      var stockistCameraInput = document.getElementById('stockistCameraInput');
+      if (stockistCameraBox && stockistCameraInput) {
+        stockistCameraBox.addEventListener('click', function() {
+          stockistCameraInput.click();
+        });
+        stockistCameraInput.addEventListener('change', handleStockistCameraCapture);
+      }
+
+      var btnScanBusinessCard = document.getElementById('btnScanBusinessCard');
+      if (btnScanBusinessCard) btnScanBusinessCard.addEventListener('click', scanBusinessCard);
+
+      var btnClearStockistPhoto = document.getElementById('btnClearStockistPhoto');
+      if (btnClearStockistPhoto) btnClearStockistPhoto.addEventListener('click', clearStockistPhoto);
+
+      var btnSaveStockistSubmit = document.getElementById('btnSaveStockistSubmit');
+      if (btnSaveStockistSubmit) btnSaveStockistSubmit.addEventListener('click', submitNewStockist);
+
+      var stockistsListContainer = document.getElementById('stockistsListContainer');
+      if (stockistsListContainer) {
+        stockistsListContainer.addEventListener('click', function(e) {
+          var delBtn = e.target.closest('.btnDeleteStockist');
+          if (delBtn) {
+            var sId = delBtn.getAttribute('data-id');
+            if (sId) deleteStockist(sId);
+          }
+        });
+      }
+
+      // More Categories Inline Form
+      var btnToggleAddCatRow = document.getElementById('btnToggleAddCategoryRow');
+      var moreCatRow = document.getElementById('moreInlineCategoryRow');
+      var inputMoreCatName = document.getElementById('inputMoreCategoryName');
+      var btnSaveMoreCat = document.getElementById('btnSaveMoreCategory');
+      var btnCancelMoreCat = document.getElementById('btnCancelMoreCategory');
+
+      if (btnToggleAddCatRow) {
+        btnToggleAddCatRow.addEventListener('click', function() {
+          if (moreCatRow) {
+            moreCatRow.style.display = 'block';
+            if (inputMoreCatName) {
+              inputMoreCatName.value = '';
+              inputMoreCatName.focus();
+            }
+          }
+        });
+      }
+
+      if (btnSaveMoreCat) {
+        btnSaveMoreCat.addEventListener('click', function() {
+          var val = inputMoreCatName ? inputMoreCatName.value : '';
+          addNewCategory(val, function() {
+            if (moreCatRow) moreCatRow.style.display = 'none';
+          });
+        });
+      }
+
+      if (btnCancelMoreCat) {
+        btnCancelMoreCat.addEventListener('click', function() {
+          if (moreCatRow) moreCatRow.style.display = 'none';
+        });
+      }
+
+      var categoriesChipsContainer = document.getElementById('categoriesChipsContainer');
+      if (categoriesChipsContainer) {
+        categoriesChipsContainer.addEventListener('click', function(e) {
+          var delBtn = e.target.closest('.btnDeleteCategory');
+          if (delBtn) {
+            var catId = delBtn.getAttribute('data-id');
+            if (catId) deleteCategory(catId);
+          }
+        });
+      }
+
+      // Gemini Settings Listeners
+      var btnSaveApiKey = document.getElementById('btnSaveApiKey');
+      if (btnSaveApiKey) btnSaveApiKey.addEventListener('click', saveGeminiKey);
+
+      var btnToggleApiKey = document.getElementById('btnToggleApiKeyVisibility');
+      if (btnToggleApiKey) btnToggleApiKey.addEventListener('click', toggleApiKeyVisibility);
+
+      // Web App URL (Vercel) Listeners
+      var btnSaveAppsScriptUrl = document.getElementById('btnSaveAppsScriptUrl');
+      if (btnSaveAppsScriptUrl) btnSaveAppsScriptUrl.addEventListener('click', saveAppsScriptUrl);
+
+      var btnTestBackendConnection = document.getElementById('btnTestBackendConnection');
+      if (btnTestBackendConnection) {
+        btnTestBackendConnection.addEventListener('click', function() {
+          testBackendConnection(false);
+        });
+      }
+
+      // Company Profile & Logo Listeners
+      var btnUploadLogo = document.getElementById('btnUploadLogo');
+      var logoFileInput = document.getElementById('logoFileInput');
+      if (btnUploadLogo && logoFileInput) {
+        btnUploadLogo.addEventListener('click', function() {
+          logoFileInput.click();
+        });
+        logoFileInput.addEventListener('change', handleLogoFileSelect);
+      }
+
+      var btnSaveCompanyProfile = document.getElementById('btnSaveCompanyProfile');
+      if (btnSaveCompanyProfile) {
+        btnSaveCompanyProfile.addEventListener('click', saveCompanyProfile);
+      }
+
+      // Post-Sale Invoice Actions
+      var btnOpenLastSaleInvoice = document.getElementById('btnOpenLastSaleInvoice');
+      if (btnOpenLastSaleInvoice) {
+        btnOpenLastSaleInvoice.addEventListener('click', function() {
+          if (state.lastSale) {
+            openInvoiceModalForSale(state.lastSale);
+          } else {
+            showToast('No recent sale found', 'warning');
+          }
+        });
+      }
+
+      var btnDismissPostSale = document.getElementById('btnDismissPostSale');
+      if (btnDismissPostSale) {
+        btnDismissPostSale.addEventListener('click', function() {
+          var postSaleCard = document.getElementById('postSaleActionCard');
+          if (postSaleCard) postSaleCard.style.display = 'none';
+        });
+      }
+
+      // Invoice Modal Actions
+      var btnCloseInvoice = document.getElementById('btnCloseInvoice');
+      var btnCloseInvoiceBtn = document.getElementById('btnCloseInvoiceBtn');
+      if (btnCloseInvoice) btnCloseInvoice.addEventListener('click', closeInvoiceModal);
+      if (btnCloseInvoiceBtn) btnCloseInvoiceBtn.addEventListener('click', closeInvoiceModal);
+
+      var btnSendInvoiceEmailSubmit = document.getElementById('btnSendInvoiceEmailSubmit');
+      if (btnSendInvoiceEmailSubmit) {
+        btnSendInvoiceEmailSubmit.addEventListener('click', sendCurrentInvoiceEmail);
+      }
+
+      var btnPrintInvoice = document.getElementById('btnPrintInvoice');
+      if (btnPrintInvoice) {
+        btnPrintInvoice.addEventListener('click', function() {
+          window.print();
+        });
+      }
+
+      // Confirm Modal Action Handlers
+      var btnConfirmYes = document.getElementById('btnConfirmYes');
+      var btnConfirmNo = document.getElementById('btnConfirmNo');
+      var btnConfirmCancelX = document.getElementById('btnConfirmCancelX');
+
+      if (btnConfirmYes) {
+        btnConfirmYes.addEventListener('click', function() {
+          var cb = state.confirmCallback;
+          hideConfirm();
+          if (cb) cb();
+        });
+      }
+      if (btnConfirmNo) btnConfirmNo.addEventListener('click', hideConfirm);
+      if (btnConfirmCancelX) btnConfirmCancelX.addEventListener('click', hideConfirm);
+
+      // Initial Data Fetch & Settings Loading
+      loadAppsScriptUrlSettings();
+      loadCompanySettings();
+      loadInventory();
+      loadCategories();
+      loadStockists();
+    });
+  </script>
+</body>
+</html>

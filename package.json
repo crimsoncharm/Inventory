@@ -1,0 +1,17 @@
+{
+  "name": "crimson-charm-inventory",
+  "version": "1.0.0",
+  "description": "Crimson Charm Inventory Management with Google Sheets backend and Gemini OCR",
+  "main": "api/proxy.js",
+  "scripts": {
+    "start": "node dev-server.js"
+  },
+  "keywords": [
+    "inventory",
+    "google-sheets",
+    "gemini-ocr",
+    "crimson-charm"
+  ],
+  "author": "ASK Hospitality",
+  "license": "ISC"
+}
